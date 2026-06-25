@@ -116,7 +116,10 @@ begin
     coalesce(new.raw_user_meta_data->>'full_name', ''),
     new.email,
     case
-      when lower(new.email) = 'harideepsingh13@gmail.com' then 'admin'
+      when lower(new.email) in (
+        'harideepsingh13@gmail.com',
+        'kishansingh.nmims@gmail.com'
+      ) then 'admin'
       else 'learner'
     end
   )

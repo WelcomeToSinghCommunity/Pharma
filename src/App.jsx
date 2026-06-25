@@ -32,10 +32,10 @@ import {
 import { supabase, hasSupabaseConfig } from './lib/supabase.js';
 
 // ─── Auth context ────────────────────────────────────────────────────────────
-const ownerEmail = 'harideepsingh13@gmail.com';
+const adminEmails = ['harideepsingh13@gmail.com', 'kishansingh.nmims@gmail.com'];
 
 function useAuth() {
-  const [session, setSession] = useState(undefined); // undefined = loading
+  const [session, setSession] = useState(undefined);
 
   useEffect(() => {
     if (!hasSupabaseConfig) { setSession(null); return; }
@@ -45,7 +45,7 @@ function useAuth() {
   }, []);
 
   const user = session?.user ?? null;
-  const isAdmin = user?.email?.toLowerCase() === ownerEmail.toLowerCase();
+  const isAdmin = adminEmails.includes(user?.email?.toLowerCase() ?? '');
   return { session, user, isAdmin, loading: session === undefined };
 }
 
@@ -829,30 +829,186 @@ function AdminCoursesPage({ isAdmin }) {
 }
 
 function AdminCourseFormPage({ isAdmin }) {
+  const { id: editId } = useParams();
+  const navigate = useNavigate();
+  const existingCourse = editId ? courses.find((c) => c.id === editId) : null;
+
+  const [title, setTitle] = useState(existingCourse?.title ?? '');
+  const [slug, setSlug] = useState(existingCourse?.slug ?? '');
+  const [shortDesc, setShortDesc] = useState(existingCourse?.shortDesc ?? '');
+  const [description, setDescription] = useState(existingCourse?.description ?? '');
+  const [level, setLevel] = useState(existingCourse?.level ?? 'Intermediate');
+  const [priceInr, setPriceInr] = useState(existingCourse?.priceInr ?? 999);
+  const [thumbnail, setThumbnail] = useState(existingCourse?.thumbnail ?? '');
+  const [published, setPublished] = useState(existingCourse?.published ?? false);
+  const [modules, setModules] = useState(
+    existingCourse?.modules.map((m) => ({
+      title: m.title,
+      lessons: m.lessons.map((l) => ({
+        title: l.title,
+        duration: l.duration,
+        videoUrl: l.videoUrl ?? '',
+        attachmentUrl: l.attachmentUrl ?? '',
+        isPreview: l.isPreview ?? false,
+        notes: l.notes ?? '',
+      })),
+    })) ?? [{ title: '', lessons: [{ title: '', duration: '10 min', videoUrl: '', attachmentUrl: '', isPreview: false, notes: '' }] }]
+  );
+  const [saved, setSaved] = useState(false);
+
+  function addModule() {
+    setModules([...modules, { title: '', lessons: [{ title: '', duration: '10 min', videoUrl: '', attachmentUrl: '', isPreview: false, notes: '' }] }]);
+  }
+  function removeModule(mi) { setModules(modules.filter((_, i) => i !== mi)); }
+  function updateModule(mi, field, value) {
+    setModules(modules.map((m, i) => i === mi ? { ...m, [field]: value } : m));
+  }
+  function addLesson(mi) {
+    setModules(modules.map((m, i) => i === mi
+      ? { ...m, lessons: [...m.lessons, { title: '', duration: '10 min', videoUrl: '', attachmentUrl: '', isPreview: false, notes: '' }] }
+      : m));
+  }
+  function removeLesson(mi, li) {
+    setModules(modules.map((m, i) => i === mi
+      ? { ...m, lessons: m.lessons.filter((_, j) => j !== li) }
+      : m));
+  }
+  function updateLesson(mi, li, field, value) {
+    setModules(modules.map((m, i) => i === mi
+      ? { ...m, lessons: m.lessons.map((l, j) => j === li ? { ...l, [field]: value } : l) }
+      : m));
+  }
+
+  function handleSave(e) {
+    e.preventDefault();
+    // Build the updated course data object and log it — 
+    // in full Supabase integration this would upsert to DB
+    const courseData = { id: slug, slug, title, shortDesc, description, level, priceInr: Number(priceInr), thumbnail, published, modules };
+    console.log('Course data to save:', courseData);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 3000);
+  }
+
   return (
     <AdminLayout isAdmin={isAdmin}>
-      <SectionTitle eyebrow="Course Builder" title="Create or edit course" />
-      <div className="mt-8 grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-        <form className="panel">
-          <h3 className="panel-title">Course details</h3>
-          <label>Title<input defaultValue="New GMP Course" /></label>
-          <label>Slug<input defaultValue="new-gmp-course" /></label>
-          <label>Short description<textarea defaultValue="Concise course summary." /></label>
-          <label>Full description<textarea rows="5" defaultValue="Full course description." /></label>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <label>Level<select defaultValue="Intermediate"><option>Beginner</option><option>Intermediate</option><option>Advanced</option></select></label>
-            <label>Price INR<input type="number" defaultValue="1499" /></label>
-          </div>
-          <div className="flex flex-wrap gap-3">
-            <button className="btn btn-outline" type="button">Save Draft</button>
-            <button className="btn btn-primary" type="button">Publish</button>
-          </div>
-        </form>
-        <div className="panel">
-          <h3 className="panel-title">Video and lesson manager</h3>
-          <button className="upload-zone" type="button"><UploadCloud size={28} />Upload thumbnail, video, PDF, or PPT</button>
-        </div>
+      <div className="flex items-center justify-between gap-4">
+        <SectionTitle eyebrow={existingCourse ? 'Edit Course' : 'New Course'} title={existingCourse ? `Editing: ${existingCourse.title}` : 'Create a new course'} />
+        <button className="btn btn-ghost" onClick={() => navigate('/admin/courses')}>
+          <ArrowLeft size={16} /> Back
+        </button>
       </div>
+
+      {saved && (
+        <div className="mt-4 flex items-center gap-2 rounded bg-teal/10 px-4 py-3 font-semibold text-teal">
+          <CheckCircle2 size={18} /> Changes saved — update src/data/courses.js with this data to publish.
+        </div>
+      )}
+
+      <form onSubmit={handleSave} className="mt-8 space-y-8">
+        {/* Course details */}
+        <div className="panel">
+          <h3 className="panel-title">Course details</h3>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label>Title<input value={title} onChange={e => setTitle(e.target.value)} placeholder="Course title" required /></label>
+            <label>Slug (URL)<input value={slug} onChange={e => setSlug(e.target.value.toLowerCase().replace(/\s+/g,'-'))} placeholder="course-url-slug" required /></label>
+          </div>
+          <label className="mt-4 block">Short description (card text)
+            <textarea value={shortDesc} onChange={e => setShortDesc(e.target.value)} rows="2" placeholder="One line summary for the course card" />
+          </label>
+          <label className="mt-4 block">Full description
+            <textarea value={description} onChange={e => setDescription(e.target.value)} rows="4" placeholder="Full course description" />
+          </label>
+          <div className="mt-4 grid gap-4 sm:grid-cols-3">
+            <label>Level
+              <select value={level} onChange={e => setLevel(e.target.value)}>
+                <option>Beginner</option><option>Intermediate</option><option>Advanced</option>
+              </select>
+            </label>
+            <label>Price (₹ INR — use 0 for free)
+              <input type="number" min="0" value={priceInr} onChange={e => setPriceInr(e.target.value)} />
+            </label>
+            <label>Status
+              <select value={published ? 'published' : 'draft'} onChange={e => setPublished(e.target.value === 'published')}>
+                <option value="draft">Draft (hidden)</option>
+                <option value="published">Published (live)</option>
+              </select>
+            </label>
+          </div>
+          <label className="mt-4 block">Thumbnail image URL
+            <input value={thumbnail} onChange={e => setThumbnail(e.target.value)} placeholder="https://images.unsplash.com/..." />
+          </label>
+          {thumbnail && <img src={thumbnail} alt="Thumbnail preview" className="mt-3 h-36 w-full rounded object-cover" onError={e => e.target.style.display='none'} />}
+        </div>
+
+        {/* Modules & Lessons */}
+        <div>
+          <div className="flex items-center justify-between">
+            <h3 className="font-display text-xl font-bold text-navy">Modules &amp; Lessons</h3>
+            <button type="button" className="btn btn-outline" onClick={addModule}><Plus size={15} /> Add Module</button>
+          </div>
+
+          <div className="mt-5 space-y-6">
+            {modules.map((mod, mi) => (
+              <div key={mi} className="panel border-l-4 border-l-teal">
+                <div className="flex items-start justify-between gap-4">
+                  <label className="flex-1">Module {mi + 1} title
+                    <input value={mod.title} onChange={e => updateModule(mi, 'title', e.target.value)} placeholder="e.g. Introduction & Regulatory Framework" />
+                  </label>
+                  <button type="button" className="btn btn-ghost mt-6 text-red-500" onClick={() => removeModule(mi)}>Remove</button>
+                </div>
+
+                <div className="mt-4 space-y-4">
+                  {mod.lessons.map((lesson, li) => (
+                    <div key={li} className="rounded border border-slate-200 bg-slate-50 p-4">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs font-bold uppercase tracking-wide text-slate-400">Lesson {li + 1}</span>
+                        <button type="button" className="text-xs font-semibold text-red-400 hover:text-red-600" onClick={() => removeLesson(mi, li)}>Remove</button>
+                      </div>
+                      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                        <label>Lesson title
+                          <input value={lesson.title} onChange={e => updateLesson(mi, li, 'title', e.target.value)} placeholder="Lesson title" />
+                        </label>
+                        <label>Duration
+                          <input value={lesson.duration} onChange={e => updateLesson(mi, li, 'duration', e.target.value)} placeholder="10 min" />
+                        </label>
+                      </div>
+                      <label className="mt-3 block">Video URL
+                        <input value={lesson.videoUrl} onChange={e => updateLesson(mi, li, 'videoUrl', e.target.value)}
+                          placeholder="https://stream.cloudflare.com/... or /videos/filename.mp4" />
+                      </label>
+                      <label className="mt-3 block">Attachment URL (PDF / PPT)
+                        <input value={lesson.attachmentUrl} onChange={e => updateLesson(mi, li, 'attachmentUrl', e.target.value)}
+                          placeholder="/materials/filename.pdf or https://..." />
+                      </label>
+                      <label className="mt-3 block">Lesson notes
+                        <textarea value={lesson.notes} onChange={e => updateLesson(mi, li, 'notes', e.target.value)} rows="3"
+                          placeholder="Notes shown below the video to learners" />
+                      </label>
+                      <label className="mt-3 flex items-center gap-2 font-normal">
+                        <input type="checkbox" checked={lesson.isPreview} onChange={e => updateLesson(mi, li, 'isPreview', e.target.checked)} />
+                        Free preview (visible without enrollment)
+                      </label>
+                    </div>
+                  ))}
+                  <button type="button" className="btn btn-ghost w-full border border-dashed border-slate-300" onClick={() => addLesson(mi)}>
+                    <Plus size={15} /> Add Lesson
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Save bar */}
+        <div className="sticky bottom-4 flex flex-wrap gap-3 rounded border border-slate-200 bg-white p-4 shadow-soft">
+          <button type="submit" className="btn btn-primary"><CheckCircle2 size={16} /> Save Changes</button>
+          <button type="button" className="btn btn-outline" onClick={() => navigate('/admin/courses')}>Cancel</button>
+          <p className="flex-1 self-center text-sm text-slate-400">
+            After saving, copy the logged data from browser console into <strong>src/data/courses.js</strong> to publish live.
+            Full Supabase CMS write integration coming next.
+          </p>
+        </div>
+      </form>
     </AdminLayout>
   );
 }
