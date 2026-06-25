@@ -706,3 +706,26 @@ td span {
   font-weight: 700;
   font-size: 0.95rem;
 }
+
+/* Mobile menu */
+.mobile-menu {
+  border-top: 1px solid #e2e8f0;
+  background: #ffffff;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.1);
+}
+
+.mobile-nav-link {
+  display: flex;
+  align-items: center;
+  border-radius: 0.35rem;
+  padding: 0.75rem 1rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #475569;
+}
+
+.mobile-nav-link:hover,
+.mobile-nav-link.active {
+  background: #ccfbf1;
+  color: #0f766e;
+}

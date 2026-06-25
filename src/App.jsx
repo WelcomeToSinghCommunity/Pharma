@@ -20,6 +20,7 @@ import {
   UploadCloud,
   UserRound,
   Users,
+  X,
 } from 'lucide-react';
 import {
   courses,
@@ -63,43 +64,87 @@ function RequireAuth({ user, loading, children }) {
 
 // ─── Header ──────────────────────────────────────────────────────────────────
 function Header({ user, isAdmin }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+
   async function handleLogout() {
     await supabase.auth.signOut();
+    setMenuOpen(false);
   }
+
+  function closeMenu() { setMenuOpen(false); }
 
   return (
     <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/90 backdrop-blur">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
-        <Link to="/" className="brand-logo" aria-label="NextGen Pharma Solutions home">
+        <Link to="/" className="brand-logo" aria-label="NextGen Pharma Solutions home" onClick={closeMenu}>
           <img src="/logo-harish-pharma-academy.svg" alt="NextGen Pharma Solutions" />
         </Link>
+
+        {/* Desktop nav */}
         <nav className="hidden items-center gap-6 text-sm font-semibold text-slate-600 md:flex">
           <NavLink className="hover:text-teal" to="/courses">Courses</NavLink>
           <NavLink className="hover:text-teal" to="/plans">Plans</NavLink>
           {user && <NavLink className="hover:text-teal" to="/dashboard">Dashboard</NavLink>}
           {isAdmin && <NavLink className="hover:text-teal" to="/admin">Admin</NavLink>}
         </nav>
-        <div className="flex items-center gap-2">
+
+        {/* Desktop auth */}
+        <div className="hidden items-center gap-2 md:flex">
           {user ? (
             <>
-              <span className="hidden text-sm font-semibold text-slate-600 sm:inline">
+              <span className="text-sm font-semibold text-slate-600">
                 {user.user_metadata?.full_name || user.email}
               </span>
-              <button className="btn btn-ghost hidden sm:inline-flex" onClick={handleLogout}>
+              <button className="btn btn-ghost" onClick={handleLogout}>
                 <LogOut size={16} /> Logout
               </button>
             </>
           ) : (
             <>
-              <Link className="btn btn-ghost hidden sm:inline-flex" to="/login">Login</Link>
+              <Link className="btn btn-ghost" to="/login">Login</Link>
               <Link className="btn btn-primary" to="/signup">Sign Up</Link>
             </>
           )}
-          <button className="icon-btn md:hidden" aria-label="Open menu">
-            <Menu size={20} />
-          </button>
         </div>
+
+        {/* Mobile hamburger */}
+        <button
+          className="icon-btn md:hidden"
+          aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+          onClick={() => setMenuOpen((o) => !o)}
+        >
+          {menuOpen ? <X size={20} /> : <Menu size={20} />}
+        </button>
       </div>
+
+      {/* Mobile dropdown menu */}
+      {menuOpen && (
+        <div className="mobile-menu md:hidden">
+          <nav className="flex flex-col gap-1 p-4">
+            <NavLink className="mobile-nav-link" to="/courses" onClick={closeMenu}>Courses</NavLink>
+            <NavLink className="mobile-nav-link" to="/plans" onClick={closeMenu}>Plans</NavLink>
+            {user && <NavLink className="mobile-nav-link" to="/dashboard" onClick={closeMenu}>Dashboard</NavLink>}
+            {isAdmin && <NavLink className="mobile-nav-link" to="/admin" onClick={closeMenu}>Admin</NavLink>}
+          </nav>
+          <div className="border-t border-slate-100 p-4">
+            {user ? (
+              <div className="flex flex-col gap-3">
+                <span className="text-sm font-semibold text-slate-600">
+                  {user.user_metadata?.full_name || user.email}
+                </span>
+                <button className="btn btn-ghost w-full justify-center" onClick={handleLogout}>
+                  <LogOut size={16} /> Logout
+                </button>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2">
+                <Link className="btn btn-outline w-full justify-center" to="/login" onClick={closeMenu}>Login</Link>
+                <Link className="btn btn-primary w-full justify-center" to="/signup" onClick={closeMenu}>Sign Up</Link>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </header>
   );
 }
