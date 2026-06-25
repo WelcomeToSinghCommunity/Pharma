@@ -1,0 +1,42 @@
+<svg width="360" height="96" viewBox="0 0 360 96" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">NextGen Pharma Solutions logo</title>
+  <desc id="desc">A navy and teal pharmaceutical solutions logo with a capsule shield mark and wordmark.</desc>
+  <defs>
+    <linearGradient id="markGradient" x1="12" y1="13" x2="84" y2="86" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0D9488"/>
+      <stop offset="0.45" stop-color="#0F5F8A"/>
+      <stop offset="1" stop-color="#0F172A"/>
+    </linearGradient>
+    <linearGradient id="accentGradient" x1="31" y1="19" x2="65" y2="75" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#E6FFFA"/>
+      <stop offset="1" stop-color="#67E8F9"/>
+    </linearGradient>
+    <filter id="softShadow" x="-10%" y="-10%" width="120%" height="125%" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="5" stdDeviation="5" flood-color="#0F172A" flood-opacity="0.18"/>
+    </filter>
+  </defs>
+
+  <g filter="url(#softShadow)">
+    <path d="M48 8C66.8 8 82 23.2 82 42C82 68.6 48 88 48 88C48 88 14 68.6 14 42C14 23.2 29.2 8 48 8Z" fill="url(#markGradient)"/>
+    <path d="M20.5 49.2C13 46.1 7.8 39.8 5.1 31.4C14 33.7 22.2 39.9 25.9 48.2C27 50.7 27.8 53.4 28.4 56.3C25.6 53.1 23 50.9 20.5 49.2Z" fill="#0F5F8A"/>
+    <path d="M75.5 49.2C83 46.1 88.2 39.8 90.9 31.4C82 33.7 73.8 39.9 70.1 48.2C69 50.7 68.2 53.4 67.6 56.3C70.4 53.1 73 50.9 75.5 49.2Z" fill="#0F5F8A"/>
+    <path d="M26.2 59.8C17.6 58.8 10 54.5 4 47.1C14.4 46.6 25.1 50.2 31.9 58C34 60.4 35.7 63.2 37.2 66.4C33.2 63 29.5 60.8 26.2 59.8Z" fill="#0F172A"/>
+    <path d="M69.8 59.8C78.4 58.8 86 54.5 92 47.1C81.6 46.6 70.9 50.2 64.1 58C62 60.4 60.3 63.2 58.8 66.4C62.8 63 66.5 60.8 69.8 59.8Z" fill="#0F172A"/>
+    <rect x="35" y="22" width="26" height="50" rx="13" fill="#F8FAFC"/>
+    <path d="M35 47H61V59C61 66.2 55.2 72 48 72C40.8 72 35 66.2 35 59V47Z" fill="url(#accentGradient)"/>
+    <rect x="38.5" y="25.5" width="19" height="43" rx="9.5" stroke="#0F172A" stroke-width="2"/>
+    <path d="M36.5 47.5H59.5" stroke="#0F172A" stroke-width="2" stroke-linecap="round"/>
+    <path d="M48 30V42" stroke="#0D9488" stroke-width="2" stroke-linecap="round"/>
+    <path d="M48 53V65" stroke="#0F5F8A" stroke-width="2" stroke-linecap="round"/>
+  </g>
+
+  <g>
+    <text x="112" y="43" fill="#0F172A" font-family="Sora, Inter, Arial, sans-serif" font-size="24" font-weight="800" letter-spacing="0">
+      NextGen Pharma
+    </text>
+    <text x="114" y="69" fill="#0D9488" font-family="Inter, Arial, sans-serif" font-size="17" font-weight="800" letter-spacing="3">
+      SOLUTIONS
+    </text>
+    <path d="M112 77H355" stroke="#CBD5E1" stroke-width="1.5" stroke-linecap="round"/>
+  </g>
+</svg>
