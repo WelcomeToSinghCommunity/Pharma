@@ -199,7 +199,7 @@ function LandingPage() {
         <div className="grid gap-10 lg:grid-cols-[0.8fr_1.2fr] lg:items-center">
           <div className="founder-photo-wrap">
             <img
-              src="/harish-profile.jpg"
+              src="/harish-profile.png"
               alt="Harish C. Singh — Founder, NextGen Pharma Solutions"
               className="founder-photo"
             />
