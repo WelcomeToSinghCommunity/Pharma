@@ -18,6 +18,9 @@ alter table public.profiles enable row level security;
 drop policy if exists "profiles read own or admin" on public.profiles;
 drop policy if exists "profiles update own or admin" on public.profiles;
 drop policy if exists "admins manage profiles" on public.profiles;
+drop policy if exists "profiles read own" on public.profiles;
+drop policy if exists "profiles update own" on public.profiles;
+drop policy if exists "profiles insert own" on public.profiles;
 
 -- 4. Allow users to read/update their own profile (no admin check yet, safe for bootstrap)
 create policy "profiles read own"

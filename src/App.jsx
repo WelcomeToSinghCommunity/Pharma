@@ -767,10 +767,25 @@ function AdminAccessDenied() {
 }
 
 function AdminPage({ isAdmin }) {
+  const [stats, setStats] = useState({ signups: 0, enrollments: 0, subscribers: 0 });
+
+  useEffect(() => {
+    if (!hasSupabaseConfig || !isAdmin) return;
+    async function loadStats() {
+      const [{ count: signups }, { count: enrollments }, { count: subscribers }] = await Promise.all([
+        supabase.from('profiles').select('*', { count: 'exact', head: true }),
+        supabase.from('enrollments').select('*', { count: 'exact', head: true }),
+        supabase.from('user_subscriptions').select('*', { count: 'exact', head: true }).eq('status', 'active'),
+      ]);
+      setStats({ signups: signups ?? 0, enrollments: enrollments ?? 0, subscribers: subscribers ?? 0 });
+    }
+    loadStats();
+  }, [isAdmin]);
+
   return (
     <AdminLayout isAdmin={isAdmin}>
       <SectionTitle eyebrow="Owner Control Center" title="Manage courses, videos, users, and access"
-        copy="This panel is visible only to Harish's admin account." />
+        copy="This panel is visible only to admin accounts." />
       <div className="mt-8 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
         {[
           [BookOpen,'Course CMS','Create, edit, publish, unpublish, or remove courses.','/admin/courses'],
@@ -784,7 +799,12 @@ function AdminPage({ isAdmin }) {
         ))}
       </div>
       <div className="mt-8 grid gap-5 md:grid-cols-4">
-        {[['MRR','₹0'],['Active subscribers','0'],['Enrollments','0'],['New signups','0']].map(([label,value]) => (
+        {[
+          ['MRR','₹0'],
+          ['Active subscribers', stats.subscribers],
+          ['Enrollments', stats.enrollments],
+          ['New signups', stats.signups],
+        ].map(([label,value]) => (
           <div className="metric-card" key={label}><span>{label}</span><strong>{value}</strong></div>
         ))}
       </div>
@@ -1014,17 +1034,47 @@ function AdminCourseFormPage({ isAdmin }) {
 }
 
 function AdminUsersPage({ isAdmin }) {
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!hasSupabaseConfig || !isAdmin) return;
+    supabase
+      .from('profiles')
+      .select('id, full_name, email, role, created_at')
+      .order('created_at', { ascending: false })
+      .then(({ data }) => { setUsers(data ?? []); setLoading(false); });
+  }, [isAdmin]);
+
   return (
     <AdminLayout isAdmin={isAdmin}>
       <SectionTitle eyebrow="Users" title="Manage enrollments" />
       <div className="table-wrap mt-8">
         <table>
-          <thead><tr><th>Name</th><th>Email</th><th>Enrolled</th><th>Plan</th><th>Action</th></tr></thead>
+          <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Joined</th><th>Action</th></tr></thead>
           <tbody>
-            {[['Demo Learner','learner@example.com','0','Free']].map(([name,email,enrolled,plan]) => (
-              <tr key={email}>
-                <td><strong>{name}</strong></td><td>{email}</td><td>{enrolled}</td><td>{plan}</td>
-                <td><div className="flex flex-wrap gap-2"><button className="btn btn-ghost">Grant Access</button><button className="btn btn-outline">Revoke</button></div></td>
+            {loading && (
+              <tr><td colSpan="5" className="text-center text-slate-400 py-6">Loading users…</td></tr>
+            )}
+            {!loading && users.length === 0 && (
+              <tr><td colSpan="5" className="text-center text-slate-400 py-6">No users yet.</td></tr>
+            )}
+            {users.map((u) => (
+              <tr key={u.id}>
+                <td><strong>{u.full_name || '—'}</strong></td>
+                <td>{u.email}</td>
+                <td>
+                  <span className={`badge ${u.role === 'admin' ? 'bg-purple-100 text-purple-700' : ''}`}>
+                    {u.role}
+                  </span>
+                </td>
+                <td>{new Date(u.created_at).toLocaleDateString('en-IN')}</td>
+                <td>
+                  <div className="flex flex-wrap gap-2">
+                    <button className="btn btn-ghost">Grant Access</button>
+                    <button className="btn btn-outline">Revoke</button>
+                  </div>
+                </td>
               </tr>
             ))}
           </tbody>
