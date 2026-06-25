@@ -1192,7 +1192,7 @@ function Footer() {
           <Link to="/courses">Courses</Link>
           <Link to="/plans">Plans</Link>
           <Link to="/dashboard">Dashboard</Link>
-          <a href="https://www.linkedin.com" target="_blank" rel="noreferrer">LinkedIn</a>
+          <a href="https://www.linkedin.com/in/harish-singh-29b39b46/" target="_blank" rel="noreferrer">LinkedIn</a>
         </div>
       </div>
     </footer>
