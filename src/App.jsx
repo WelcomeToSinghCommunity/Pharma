@@ -635,8 +635,44 @@ function ProfilePage({ user }) {
 // ─── Course player ────────────────────────────────────────────────────────────
 function CoursePlayerPage({ user }) {
   const { courseId, lessonId } = useParams();
+  const navigate = useNavigate();
   const course = courses.find((c) => c.id === courseId) ?? courses[0];
+
+  // Build a flat ordered list of all lessons across all modules
+  const allLessons = course.modules.flatMap((mod, mi) =>
+    mod.lessons.map((lesson, li) => ({
+      ...lesson,
+      id: makeLessonId(mod.title, li),
+      moduleTitle: mod.title,
+      moduleIndex: mi,
+      lessonIndex: li,
+    }))
+  );
+
   const currentLesson = getLessonById(course, lessonId);
+  const currentIndex = allLessons.findIndex((l) => l.id === currentLesson.id);
+  const prevLesson = currentIndex > 0 ? allLessons[currentIndex - 1] : null;
+  const nextLesson = currentIndex < allLessons.length - 1 ? allLessons[currentIndex + 1] : null;
+
+  // Track completed lessons locally (persists per session)
+  const [completed, setCompleted] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(`completed_${courseId}`) || '[]'); }
+    catch { return []; }
+  });
+
+  function markComplete() {
+    const updated = completed.includes(currentLesson.id)
+      ? completed
+      : [...completed, currentLesson.id];
+    setCompleted(updated);
+    localStorage.setItem(`completed_${courseId}`, JSON.stringify(updated));
+    if (nextLesson) {
+      navigate(`/dashboard/learn/${course.id}/${nextLesson.id}`);
+    }
+  }
+
+  const isCompleted = (id) => completed.includes(id);
+
   return (
     <section className="player-shell">
       <aside className="lesson-sidebar">
@@ -644,34 +680,56 @@ function CoursePlayerPage({ user }) {
           <ArrowLeft size={16} /> Dashboard
         </Link>
         <h1 className="mt-5 font-display text-2xl font-bold text-navy">{course.title}</h1>
+
+        {/* Progress bar */}
+        <div className="mt-4">
+          <div className="mb-1 flex justify-between text-xs font-semibold text-slate-500">
+            <span>Progress</span>
+            <span>{Math.round((completed.length / allLessons.length) * 100)}%</span>
+          </div>
+          <div className="progress-track">
+            <span style={{ width: `${(completed.length / allLessons.length) * 100}%` }} />
+          </div>
+        </div>
+
         <div className="mt-6 space-y-5">
           {course.modules.map((mod) => (
             <div key={mod.title}>
               <h2 className="text-sm font-bold uppercase tracking-[0.12em] text-slate-500">{mod.title}</h2>
               <div className="mt-3 space-y-2">
-                {mod.lessons.map((lesson, li) => (
-                  <Link
-                    className={currentLesson.id === makeLessonId(mod.title, li) ? 'outline-lesson active' : 'outline-lesson'}
-                    key={lesson.title}
-                    to={`/dashboard/learn/${course.id}/${makeLessonId(mod.title, li)}`}
-                  >
-                    <span>{lesson.title}</span>
-                    {li < 2 ? <CheckCircle2 size={16} /> : <Play size={16} />}
-                  </Link>
-                ))}
+                {mod.lessons.map((lesson, li) => {
+                  const id = makeLessonId(mod.title, li);
+                  const done = isCompleted(id);
+                  return (
+                    <Link
+                      className={currentLesson.id === id ? 'outline-lesson active' : 'outline-lesson'}
+                      key={lesson.title}
+                      to={`/dashboard/learn/${course.id}/${id}`}
+                    >
+                      <span>{lesson.title}</span>
+                      {done ? <CheckCircle2 size={16} className="text-teal shrink-0" /> : <Play size={16} className="shrink-0" />}
+                    </Link>
+                  );
+                })}
               </div>
             </div>
           ))}
         </div>
       </aside>
+
       <main className="player-main">
-        <div className="video-frame">
-          {currentLesson.videoUrl && currentLesson.videoUrl !== '/videos/upload-your-video.mp4' ? (
+        {/* Video or content-only lesson */}
+        {currentLesson.videoUrl && currentLesson.videoUrl !== '/videos/upload-your-video.mp4' ? (
+          <div className="video-frame">
             <video src={currentLesson.videoUrl} controls controlsList="nodownload" />
-          ) : (
-            <div><Play size={42} aria-hidden="true" /><p>Video coming soon</p></div>
-          )}
-        </div>
+          </div>
+        ) : (
+          <div className="content-only-banner">
+            <BookOpen size={32} className="text-teal" aria-hidden="true" />
+            <p>Reading lesson — no video for this topic</p>
+          </div>
+        )}
+
         <div className="mt-7 flex flex-col justify-between gap-4 md:flex-row md:items-center">
           <div>
             <span className="badge">{currentLesson.moduleTitle}</span>
@@ -681,17 +739,49 @@ function CoursePlayerPage({ user }) {
             <a className="btn btn-outline" href={currentLesson.attachmentUrl} target="_blank" rel="noreferrer">
               <Download size={16} /> Download notes
             </a>
+          ) : null}
+        </div>
+
+        <article className="lesson-notes">
+          {currentLesson.notes.split('\n').map((p, i) => p.trim() ? <p key={i}>{p}</p> : null)}
+        </article>
+
+        {/* Navigation buttons */}
+        <div className="mt-8 flex items-center justify-between gap-3">
+          <button
+            className="btn btn-outline"
+            disabled={!prevLesson}
+            onClick={() => prevLesson && navigate(`/dashboard/learn/${course.id}/${prevLesson.id}`)}
+          >
+            <ArrowLeft size={16} /> Previous
+          </button>
+
+          <span className="text-sm text-slate-400">
+            {currentIndex + 1} / {allLessons.length}
+          </span>
+
+          {nextLesson ? (
+            <button className="btn btn-primary" onClick={markComplete}>
+              <CheckCircle2 size={16} />
+              {isCompleted(currentLesson.id) ? 'Next Lesson' : 'Mark Complete & Next'}
+            </button>
           ) : (
-            <button className="btn btn-outline" disabled><Download size={16} /> No attachment</button>
+            <button className="btn btn-teal" onClick={markComplete}>
+              <CheckCircle2 size={16} />
+              {isCompleted(currentLesson.id) ? '✓ Course Complete' : 'Mark Complete'}
+            </button>
           )}
         </div>
-        <article className="lesson-notes">
-          {currentLesson.notes.split('\n').map((p) => <p key={p}>{p}</p>)}
-        </article>
-        <div className="mt-8 flex justify-between">
-          <button className="btn btn-ghost">Previous</button>
-          <button className="btn btn-primary">Mark Complete &amp; Next</button>
-        </div>
+
+        {/* Course complete banner */}
+        {!nextLesson && isCompleted(currentLesson.id) && (
+          <div className="mt-6 rounded border border-teal/30 bg-teal/5 p-5 text-center">
+            <CheckCircle2 size={36} className="mx-auto text-teal" />
+            <h3 className="mt-3 font-display text-xl font-bold text-navy">Course Complete!</h3>
+            <p className="mt-2 text-slate-600">You've finished all lessons in this course.</p>
+            <Link className="btn btn-primary mt-4 inline-flex" to="/dashboard">Back to Dashboard</Link>
+          </div>
+        )}
       </main>
     </section>
   );
@@ -1023,10 +1113,6 @@ function AdminCourseFormPage({ isAdmin }) {
         <div className="sticky bottom-4 flex flex-wrap gap-3 rounded border border-slate-200 bg-white p-4 shadow-soft">
           <button type="submit" className="btn btn-primary"><CheckCircle2 size={16} /> Save Changes</button>
           <button type="button" className="btn btn-outline" onClick={() => navigate('/admin/courses')}>Cancel</button>
-          <p className="flex-1 self-center text-sm text-slate-400">
-            After saving, copy the logged data from browser console into <strong>src/data/courses.js</strong> to publish live.
-            Full Supabase CMS write integration coming next.
-          </p>
         </div>
       </form>
     </AdminLayout>

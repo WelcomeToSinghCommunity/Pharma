@@ -692,3 +692,17 @@ td span {
     height: 14rem;
   }
 }
+
+/* Content-only lesson banner (no video) */
+.content-only-banner {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  border-radius: 0.5rem;
+  border: 1px solid #e2e8f0;
+  background: #f0fdfa;
+  padding: 1.25rem 1.5rem;
+  color: #0f766e;
+  font-weight: 700;
+  font-size: 0.95rem;
+}
