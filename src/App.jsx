@@ -369,9 +369,9 @@ function LandingPage() {
       <section className="hero-section">
         <div className="mx-auto grid max-w-7xl gap-10 px-4 py-16 sm:px-6 lg:grid-cols-[1.05fr_0.95fr] lg:px-8 lg:py-20">
           <div className="flex flex-col justify-center">
-            <span className="eyebrow">Pharmaceutical QA/QC Certification Platform</span>
+            <span className="eyebrow">Pharmaceutical QA/QC Training Platform</span>
             <h1 className="mt-5 font-display text-4xl font-extrabold leading-tight text-white sm:text-5xl lg:text-6xl">
-              Inspection-ready GMP training by Harish C. Singh.
+              Inspection-ready GMP and Regulatory training by Harish C. Singh.
             </h1>
             <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-200">
               NextGen Pharma Solutions — a dynamic ecosystem to empower pharma talent, drive career growth,
@@ -390,7 +390,7 @@ function LandingPage() {
             />
             <div className="p-6">
               <p className="text-sm font-semibold uppercase tracking-[0.18em] text-teal">Founded by Harish C. Singh</p>
-              <h2 className="mt-2 font-display text-2xl font-bold text-white">Deputy Manager QCC, M.Tech BITS</h2>
+              <h2 className="mt-2 font-display text-2xl font-bold text-white">QA/QC Mentoring, M.Tech BITS</h2>
               <p className="mt-3 text-sm leading-6 text-slate-300">
                 Practical GMP, validation, OOS, smoke study, and CSA content built from real industry workflows.
               </p>
@@ -450,7 +450,6 @@ function LandingPage() {
               Analytical Method Validation.
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
-              <span className="pill">Deputy Manager QCC</span>
               <span className="pill">M.Tech BITS</span>
               <span className="pill">QA/QC Mentoring</span>
               <span className="pill">Regulatory Affairs</span>
