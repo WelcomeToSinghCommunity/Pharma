@@ -729,3 +729,66 @@ td span {
   background: #ccfbf1;
   color: #0f766e;
 }
+
+/* ─── VideoPlayer ──────────────────────────────────────────────────────────── */
+.video-player-wrap {
+  position: relative;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  background: #020617;
+}
+.video-controls {
+  background: linear-gradient(to top, rgba(2,6,23,0.95), rgba(2,6,23,0.7));
+  padding: 0.5rem 0.75rem 0.75rem;
+}
+.video-progress {
+  height: 5px;
+  background: rgba(255,255,255,0.2);
+  border-radius: 999px;
+  cursor: pointer;
+  margin-bottom: 0.5rem;
+  position: relative;
+}
+.video-progress-fill {
+  height: 100%;
+  background: #0d9488;
+  border-radius: inherit;
+  pointer-events: none;
+}
+.video-controls-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.video-controls-row .icon-btn {
+  background: transparent;
+  color: #fff;
+  width: 2rem;
+  min-height: 2rem;
+}
+.video-controls-row .icon-btn:hover { background: rgba(255,255,255,0.1); }
+.video-time { color: rgba(255,255,255,0.8); font-size: 0.8rem; font-weight: 600; white-space: nowrap; }
+.video-volume { width: 5rem; accent-color: #0d9488; }
+.video-speed {
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 0.25rem;
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 0.25rem 0.4rem;
+  width: auto;
+}
+.video-spinner {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(2,6,23,0.5); z-index: 10;
+}
+.spinner {
+  width: 2.5rem; height: 2.5rem;
+  border: 3px solid rgba(255,255,255,0.2);
+  border-top-color: #0d9488;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
