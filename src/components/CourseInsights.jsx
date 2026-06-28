@@ -1,28 +1,30 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, CheckCircle2, Clock, BookOpen, Users, Award, Play, Lock, ChevronRight } from 'lucide-react';
-import { getCourseById } from '../lib/api.js';
 
 export default function CourseInsights() {
-  const { courseId } = useParams();
+  const { slug } = useParams();
   const navigate = useNavigate();
   const [course, setCourse] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!courseId) return;
+    if (!slug) return;
     
     setLoading(true);
-    getCourseById(courseId)
+    // Try to get from backend API by slug
+    fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/courses/slug/${slug}`)
+      .then(res => res.json())
       .then(data => {
-        if (data) setCourse(data);
+        if (data && data.id) setCourse(data);
         else throw new Error('Course not found');
       })
       .catch(err => {
         console.error('Failed to load course:', err);
+        setCourse(null);
       })
       .finally(() => setLoading(false));
-  }, [courseId]);
+  }, [slug]);
 
   if (loading) {
     return (
@@ -233,7 +235,7 @@ export default function CourseInsights() {
               </div>
 
               <button
-                onClick={() => navigate(`/checkout/${course.id}`)}
+                onClick={() => navigate(`/checkout/${course.slug}`)}
                 className="btn btn-primary w-full justify-center mt-6 text-lg"
               >
                 Proceed to Checkout

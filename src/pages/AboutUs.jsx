@@ -171,12 +171,16 @@ export default function AboutUs() {
               <p className="font-semibold">Phone</p>
               <p className="opacity-90">+91 XXXXXXXXXX</p>
             </div>
+            <div className="md:col-span-2">
+              <p className="font-semibold">Address</p>
+              <p className="opacity-90">Makarba, Ahmedabad 380051, Gujarat</p>
+            </div>
           </div>
         </div>
 
         {/* Footer Note */}
         <div className="text-center mt-12 text-slate-500 text-sm">
-          <p>Harish Pharma Academy - Your Partner in Pharmaceutical Excellence</p>
+          <p>NextGen Pharma - Your Partner in Pharmaceutical Excellence</p>
         </div>
       </div>
     </div>

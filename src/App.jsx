@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import { Link, NavLink, Navigate, Route, Routes, useNavigate, useParams } from 'react-router-dom';
 import {
   ArrowLeft, BarChart3, BookOpen, CheckCircle2, ChevronRight, ClipboardCheck,
@@ -60,6 +60,19 @@ function RequireAuth({ user, loading, children }) {
 function Header({ user, isAdmin }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [resourcesOpen, setResourcesOpen] = useState(false);
+  const resourcesRef = useRef(null);
+  
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (resourcesRef.current && !resourcesRef.current.contains(event.target)) {
+        setResourcesOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+  
   async function handleLogout() { await supabase.auth.signOut(); setMenuOpen(false); }
   function closeMenu() { setMenuOpen(false); }
   return (
@@ -71,20 +84,15 @@ function Header({ user, isAdmin }) {
         <nav className="hidden items-center gap-6 text-sm font-semibold text-slate-600 md:flex">
           <NavLink className="hover:text-teal" to="/courses">Courses</NavLink>
           
-          <div className="relative group">
+          <div className="relative" ref={resourcesRef}>
             <button 
-              className="flex items-center gap-1 hover:text-teal transition-colors"
-              onMouseEnter={() => setResourcesOpen(true)}
-              onMouseLeave={() => setResourcesOpen(false)}
+              className="flex items-center gap-1 hover:text-teal transition-colors focus:outline-none"
+              onClick={() => setResourcesOpen(!resourcesOpen)}
             >
-              Resources <ChevronRight size={14} className="group-hover:rotate-90 transition-transform" />
+              Resources <ChevronRight size={14} className={`transition-transform ${resourcesOpen ? 'rotate-90' : ''}`} />
             </button>
             {resourcesOpen && (
-              <div 
-                className="absolute top-full left-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-slate-200 py-2"
-                onMouseEnter={() => setResourcesOpen(true)}
-                onMouseLeave={() => setResourcesOpen(false)}
-              >
+              <div className="absolute top-full left-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-slate-200 py-2">
                 <NavLink className="block px-4 py-2 hover:bg-slate-50 hover:text-teal" to="/books" onClick={() => setResourcesOpen(false)}>Books</NavLink>
                 <NavLink className="block px-4 py-2 hover:bg-slate-50 hover:text-teal" to="/live" onClick={() => setResourcesOpen(false)}>Live Classes</NavLink>
               </div>
@@ -413,17 +421,20 @@ function CourseDetailPage({ user, isAdmin }) {
     // Try to get from backend API first
     getCourseBySlug(slug)
       .then(data => {
-        if (data) setCourse(data);
+        if (data && data.id) setCourse(data);
         else {
           // Fallback to static data
           const staticCourse = getCourseBySlug(slug);
-          setCourse(staticCourse);
+          if (staticCourse) setCourse(staticCourse);
+          else setCourse(null);
         }
       })
-      .catch(() => {
+      .catch((err) => {
+        console.error('Failed to load course from API:', err);
         // Fallback to static data on error
         const staticCourse = getCourseBySlug(slug);
-        setCourse(staticCourse);
+        if (staticCourse) setCourse(staticCourse);
+        else setCourse(null);
       })
       .finally(() => setLoading(false));
   }, [slug]);
@@ -432,7 +443,7 @@ function CourseDetailPage({ user, isAdmin }) {
     return <div className="min-h-screen bg-mist flex items-center justify-center">Loading...</div>;
   }
 
-  if (!course || (!course.isPublished && !isAdmin)) return <NotFound />;
+  if (!course) return <NotFound />;
   const isEnrolled = false;
   function handleEnroll() {
     if (!user) { navigate('/signup'); return; }
@@ -1189,13 +1200,13 @@ function Footer() {
       <div className="mx-auto flex max-w-7xl flex-col justify-between gap-6 px-4 py-8 text-sm text-slate-600 sm:px-6 md:flex-row lg:px-8">
         <div>
           <strong className="font-display text-navy">NextGen Pharma</strong>
-          <p className="mt-2">Contact: harideepsingh13@gmail.com</p>
+          <p className="mt-2">Makarba, Ahmedabad 380051, Gujarat</p>
+          <p className="mt-1">Contact: harideepsingh13@gmail.com</p>
         </div>
         <div className="flex flex-wrap gap-4">
           <Link to="/courses">Courses</Link>
           <Link to="/books">Books</Link>
           <Link to="/live">Live Classes</Link>
-          <Link to="/plans">Plans</Link>
           <Link to="/contact">Contact</Link>
           <Link to="/refer">Refer &amp; Earn</Link>
           <Link to="/about">About Us</Link>
@@ -1222,7 +1233,7 @@ export default function App() {
         <Route path="/courses" element={<CatalogPage />} />
         <Route path="/courses/:slug" element={<CourseDetailPage user={user} isAdmin={isAdmin} />} />
         <Route path="/courses/:slug/insights" element={<CourseInsights />} />
-        <Route path="/checkout/:courseId" element={<CheckoutPage />} />
+        <Route path="/checkout/:slug" element={<CheckoutPage />} />
         <Route path="/books" element={<Books />} />
         <Route path="/live" element={<LiveClasses />} />
         <Route path="/contact" element={<Contact />} />

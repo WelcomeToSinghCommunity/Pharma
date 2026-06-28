@@ -119,13 +119,13 @@ export default function TermsConditions() {
               <div className="bg-slate-50 rounded-lg p-4">
                 <p className="text-slate-700"><strong>Email:</strong> harideepsingh13@gmail.com</p>
                 <p className="text-slate-700 mt-1"><strong>Phone:</strong> +91 XXXXXXXXXX</p>
-                <p className="text-slate-700 mt-1"><strong>Address:</strong> [Your Business Address]</p>
+                <p className="text-slate-700 mt-1"><strong>Address:</strong> Makarba, Ahmedabad 380051, Gujarat</p>
               </div>
             </section>
 
             <div className="border-t border-slate-200 pt-6 mt-8">
               <p className="text-sm text-slate-500">
-                By enrolling in any course on Harish Pharma Academy, you acknowledge that you have read, understood, and agreed to these Terms & Conditions.
+                By enrolling in any course on NextGen Pharma, you acknowledge that you have read, understood, and agreed to these Terms & Conditions.
               </p>
             </div>
           </div>

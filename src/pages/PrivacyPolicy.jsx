@@ -106,6 +106,7 @@ export default function PrivacyPolicy() {
               <div className="bg-slate-50 rounded-lg p-4 mt-3">
                 <p className="text-slate-700"><strong>Email:</strong> harideepsingh13@gmail.com</p>
                 <p className="text-slate-700 mt-1"><strong>Phone:</strong> +91 XXXXXXXXXX</p>
+                <p className="text-slate-700 mt-1"><strong>Address:</strong> Makarba, Ahmedabad 380051, Gujarat</p>
               </div>
             </section>
 

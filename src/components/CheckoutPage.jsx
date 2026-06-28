@@ -1,24 +1,31 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Check, ArrowLeft, Lock, PlayCircle, FileText, Award, Clock, Users, Star } from 'lucide-react';
-import { getCourseById } from '../lib/api.js';
 
 export default function CheckoutPage() {
-  const { courseId } = useParams();
+  const { slug } = useParams();
   const navigate = useNavigate();
   const [course, setCourse] = useState(null);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
 
   useEffect(() => {
-    if (!courseId) return;
+    if (!slug) return;
     
     setLoading(true);
-    getCourseById(courseId)
-      .then(data => setCourse(data))
-      .catch(err => console.error('Failed to load course:', err))
+    // Try to get from backend API by slug
+    fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/courses/slug/${slug}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.id) setCourse(data);
+        else throw new Error('Course not found');
+      })
+      .catch(err => {
+        console.error('Failed to load course:', err);
+        setCourse(null);
+      })
       .finally(() => setLoading(false));
-  }, [courseId]);
+  }, [slug]);
 
   const handleEnroll = async () => {
     if (!course) return;
