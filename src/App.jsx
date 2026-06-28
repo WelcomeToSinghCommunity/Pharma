@@ -6,7 +6,7 @@ import {
   Phone, Play, Plus, Radio, Search, ShieldCheck, UploadCloud, UserRound, Users, Video, X,
 } from 'lucide-react';
 import {
-  courses, getCourseBySlug, getLessonById, getLessonCount, getModuleCount, makeLessonId,
+  courses, getCourseBySlug as getCourseBySlugStatic, getLessonById, getLessonCount, getModuleCount, makeLessonId,
 } from './data/courses.js';
 import { supabase, hasSupabaseConfig } from './lib/supabase.js';
 import {
@@ -424,7 +424,7 @@ function CourseDetailPage({ user, isAdmin }) {
         if (data && data.id) setCourse(data);
         else {
           // Fallback to static data
-          const staticCourse = getCourseBySlug(slug);
+          const staticCourse = getCourseBySlugStatic(slug);
           if (staticCourse) setCourse(staticCourse);
           else setCourse(null);
         }
@@ -432,7 +432,7 @@ function CourseDetailPage({ user, isAdmin }) {
       .catch((err) => {
         console.error('Failed to load course from API:', err);
         // Fallback to static data on error
-        const staticCourse = getCourseBySlug(slug);
+        const staticCourse = getCourseBySlugStatic(slug);
         if (staticCourse) setCourse(staticCourse);
         else setCourse(null);
       })
@@ -809,9 +809,22 @@ function AdminCoursesPage({ isAdmin }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    setLoading(true);
+    // Try to get from backend API first
     getCourses(false) // Get all courses including drafts
-      .then(data => setCourses(data))
-      .catch(err => console.error('Failed to load courses:', err))
+      .then(data => {
+        if (data && Array.isArray(data)) {
+          setCourses(data);
+        } else {
+          // Fallback to static data
+          setCourses(courses);
+        }
+      })
+      .catch(err => {
+        console.error('Failed to load courses:', err);
+        // Fallback to static data on error
+        setCourses(courses);
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -835,14 +848,22 @@ function AdminCoursesPage({ isAdmin }) {
         <table>
           <thead><tr><th>Course</th><th>Level</th><th>Price</th><th>Status</th><th>Actions</th></tr></thead>
           <tbody>
-            {courses.map((c) => (
-              <tr key={c.id}>
-                <td><strong>{c.title}</strong><span>{c.shortDesc}</span></td>
-                <td>{c.level}</td><td>{formatPrice(c.priceInr)}</td>
-                <td><span className="badge">{c.isPublished ? 'Published' : 'Draft'}</span></td>
-                <td><Link className="btn btn-ghost" to={`/admin/courses/${c.id}/edit`}>Edit</Link></td>
+            {courses.length === 0 ? (
+              <tr>
+                <td colSpan="5" className="text-center text-slate-500 py-8">
+                  No courses found. Create your first course to get started.
+                </td>
               </tr>
-            ))}
+            ) : (
+              courses.map((c) => (
+                <tr key={c.id}>
+                  <td><strong>{c.title}</strong><span>{c.shortDesc}</span></td>
+                  <td>{c.level}</td><td>{formatPrice(c.priceInr)}</td>
+                  <td><span className="badge">{c.isPublished ? 'Published' : 'Draft'}</span></td>
+                  <td><Link className="btn btn-ghost" to={`/admin/courses/${c.id}/edit`}>Edit</Link></td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
