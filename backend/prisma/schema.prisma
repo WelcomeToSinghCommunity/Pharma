@@ -1,0 +1,230 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// USER & AUTH
+// ============================================
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  fullName      String?
+  avatarUrl     String?
+  isInstructor  Boolean   @default(false)
+  isAdmin       Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  comments      Comment[]
+  replies       Reply[]
+  commentLikes  CommentLike[]
+  videoLikes    VideoLike[]
+  enrollments   Enrollment[]
+}
+
+// ============================================
+// COURSES
+// ============================================
+
+model Course {
+  id              String    @id @default(uuid())
+  slug            String    @unique
+  title           String
+  shortDesc       String
+  description     String    @db.Text
+  thumbnailUrl    String?
+  instructor      String    @default("Harish Singh")
+  level           Level     @default(INTERMEDIATE)
+  priceInr        Int       @default(0)
+  whatYouWillLearn String[] @default([])
+  isPublished     Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  modules         Module[]
+  enrollments     Enrollment[]
+
+  @@index([slug])
+  @@index([isPublished])
+}
+
+enum Level {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+}
+
+// ============================================
+// MODULES
+// ============================================
+
+model Module {
+  id          String    @id @default(uuid())
+  courseId    String
+  title       String
+  sortOrder   Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  course      Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lessons     Lesson[]
+
+  @@index([courseId])
+  @@index([sortOrder])
+}
+
+// ============================================
+// LESSONS
+// ============================================
+
+model Lesson {
+  id              String    @id @default(uuid())
+  moduleId        String
+  title           String
+  contentText     String?   @db.Text
+  videoUrl        String?
+  videoDuration   Int?      // in seconds
+  videoStreamId   String?   // Cloudflare Stream video ID
+  attachmentUrl   String?   // PDF/PPT
+  isPreview       Boolean   @default(false)
+  sortOrder       Int       @default(0)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  module          Module    @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  comments        Comment[]
+  videoLikes      VideoLike[]
+
+  @@index([moduleId])
+  @@index([sortOrder])
+}
+
+// ============================================
+// ENROLLMENTS
+// ============================================
+
+model Enrollment {
+  id          String    @id @default(uuid())
+  userId      String
+  courseId    String
+  enrolledAt  DateTime  @default(now())
+  status      EnrollmentStatus @default(ACTIVE)
+
+  // Relations
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course      Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, courseId])
+  @@index([userId])
+  @@index([courseId])
+}
+
+enum EnrollmentStatus {
+  ACTIVE
+  EXPIRED
+  REFUNDED
+}
+
+// ============================================
+// COMMENTS (on lessons)
+// ============================================
+
+model Comment {
+  id          String    @id @default(uuid())
+  lessonId    String
+  userId      String
+  content     String    @db.Text
+  isPinned    Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  lesson      Lesson    @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  replies     Reply[]
+  likes       CommentLike[]
+
+  @@index([lessonId])
+  @@index([userId])
+  @@index([isPinned])
+  @@index([createdAt])
+}
+
+// ============================================
+// REPLIES (to comments)
+// ============================================
+
+model Reply {
+  id          String    @id @default(uuid())
+  commentId   String
+  userId      String
+  content     String    @db.Text
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  comment     Comment   @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([commentId])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+// ============================================
+// COMMENT LIKES
+// ============================================
+
+model CommentLike {
+  id          String    @id @default(uuid())
+  commentId   String
+  userId      String
+  createdAt   DateTime  @default(now())
+
+  // Relations
+  comment     Comment   @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([commentId, userId])
+  @@index([commentId])
+  @@index([userId])
+}
+
+// ============================================
+// VIDEO LIKES/DISLIKES
+// ============================================
+
+model VideoLike {
+  id          String    @id @default(uuid())
+  lessonId    String
+  userId      String
+  type        ReactionType
+  createdAt   DateTime  @default(now())
+
+  // Relations
+  lesson      Lesson    @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([lessonId, userId])
+  @@index([lessonId])
+  @@index([userId])
+  @@index([type])
+}
+
+enum ReactionType {
+  LIKE
+  DISLIKE
+}

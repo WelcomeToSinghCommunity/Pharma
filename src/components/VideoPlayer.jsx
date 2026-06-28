@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import {
   Maximize, Minimize, Pause, PauseCircle, Play, PlayCircle,
-  Volume2, VolumeX, PictureInPicture2,
+  Volume2, VolumeX, PictureInPicture2, ThumbsUp, ThumbsDown,
 } from 'lucide-react';
 import { supabase, hasSupabaseConfig } from '../lib/supabase.js';
+import { reactToVideo, removeVideoReaction, getVideoReactionCounts, getUserVideoReaction } from '../lib/api.js';
 
 const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
 
@@ -28,6 +29,8 @@ export default function VideoPlayer({ src, courseId, videoId, title, subtitlesUr
   const [showComplete, setShowComplete] = useState(false);
   const [buffering, setBuffering] = useState(false);
   const [resumeFrom, setResumeFrom] = useState(null);
+  const [reactionCounts, setReactionCounts] = useState({ LIKE: 0, DISLIKE: 0 });
+  const [userReaction, setUserReaction] = useState(null);
 
   // Load saved progress on mount
   useEffect(() => {
@@ -41,6 +44,22 @@ export default function VideoPlayer({ src, courseId, videoId, title, subtitlesUr
         if (data && data.timestamp_seconds > 5) setResumeFrom(data.timestamp_seconds);
       });
   }, [user, videoId]);
+
+  // Load reaction counts
+  useEffect(() => {
+    if (!videoId) return;
+    getVideoReactionCounts(videoId)
+      .then(setReactionCounts)
+      .catch(err => console.error('Failed to load reactions:', err));
+  }, [videoId]);
+
+  // Load user's reaction
+  useEffect(() => {
+    if (!videoId || !user) return;
+    getUserVideoReaction(videoId, user.id)
+      .then(setUserReaction)
+      .catch(err => console.error('Failed to load user reaction:', err));
+  }, [videoId, user]);
 
   // Apply resume on load
   function handleLoadedMetadata() {
@@ -115,6 +134,29 @@ export default function VideoPlayer({ src, courseId, videoId, title, subtitlesUr
     } else {
       document.exitFullscreen();
       setFullscreen(false);
+    }
+  }
+
+  async function handleReaction(type) {
+    if (!user || !videoId) return;
+    
+    try {
+      if (userReaction?.type === type) {
+        // Remove reaction if clicking same type
+        await removeVideoReaction(videoId, user.id);
+        setUserReaction(null);
+        setReactionCounts(prev => ({
+          ...prev,
+          [type]: prev[type] - 1,
+        }));
+      } else {
+        // Add or change reaction
+        const result = await reactToVideo(videoId, user.id, type);
+        setUserReaction({ type });
+        setReactionCounts(result.counts);
+      }
+    } catch (error) {
+      console.error('Failed to react:', error);
     }
   }
 
@@ -204,6 +246,27 @@ export default function VideoPlayer({ src, courseId, videoId, title, subtitlesUr
           </select>
 
           <div className="ml-auto flex items-center gap-1">
+            {/* Like/Dislike */}
+            {user && (
+              <>
+                <button
+                  onClick={() => handleReaction('LIKE')}
+                  className={`icon-btn ${userReaction?.type === 'LIKE' ? 'text-teal' : ''}`}
+                  aria-label="Like"
+                >
+                  <ThumbsUp size={16} />
+                </button>
+                <span className="text-xs text-slate-400 w-6">{reactionCounts.LIKE}</span>
+                <button
+                  onClick={() => handleReaction('DISLIKE')}
+                  className={`icon-btn ${userReaction?.type === 'DISLIKE' ? 'text-red-500' : ''}`}
+                  aria-label="Dislike"
+                >
+                  <ThumbsDown size={16} />
+                </button>
+                <span className="text-xs text-slate-400 w-6">{reactionCounts.DISLIKE}</span>
+              </>
+            )}
             {/* PiP */}
             <button onClick={togglePiP} className="icon-btn" aria-label="Picture in picture">
               <PictureInPicture2 size={16} />

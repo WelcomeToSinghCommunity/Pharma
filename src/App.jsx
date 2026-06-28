@@ -9,7 +9,17 @@ import {
   courses, getCourseBySlug, getLessonById, getLessonCount, getModuleCount, makeLessonId,
 } from './data/courses.js';
 import { supabase, hasSupabaseConfig } from './lib/supabase.js';
+import {
+  getCourses, getCourseById, createCourse, updateCourse, deleteCourse,
+  uploadThumbnail, uploadMaterial, uploadVideo,
+} from './lib/api.js';
 import VideoPlayer from './components/VideoPlayer.jsx';
+import CheckoutPage from './components/CheckoutPage.jsx';
+import CourseInsights from './components/CourseInsights.jsx';
+import PrivacyPolicy from './pages/PrivacyPolicy.jsx';
+import TermsConditions from './pages/TermsConditions.jsx';
+import RefundPolicy from './pages/RefundPolicy.jsx';
+import AboutUs from './pages/AboutUs.jsx';
 import ReferFriends from './pages/ReferFriends.jsx';
 import Contact from './pages/Contact.jsx';
 import LiveClasses from './pages/LiveClasses.jsx';
@@ -49,47 +59,76 @@ function RequireAuth({ user, loading, children }) {
 // ─── Header ───────────────────────────────────────────────────────────────────
 function Header({ user, isAdmin }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [resourcesOpen, setResourcesOpen] = useState(false);
   async function handleLogout() { await supabase.auth.signOut(); setMenuOpen(false); }
   function closeMenu() { setMenuOpen(false); }
   return (
     <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/90 backdrop-blur">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
-        <Link to="/" className="brand-logo" aria-label="NextGen Pharma Solutions home" onClick={closeMenu}>
-          <img src="/logo-harish-pharma-academy.svg" alt="NextGen Pharma Solutions" />
+        <Link to="/" className="brand-logo" aria-label="NextGen Pharma home" onClick={closeMenu}>
+          <img src="/logo-harish-pharma-academy.svg" alt="NextGen Pharma" />
         </Link>
-        <nav className="hidden items-center gap-5 text-sm font-semibold text-slate-600 md:flex">
+        <nav className="hidden items-center gap-6 text-sm font-semibold text-slate-600 md:flex">
           <NavLink className="hover:text-teal" to="/courses">Courses</NavLink>
-          <NavLink className="hover:text-teal" to="/books">Books</NavLink>
-          <NavLink className="hover:text-teal" to="/live">Live Classes</NavLink>
-          <NavLink className="hover:text-teal" to="/plans">Plans</NavLink>
+          
+          <div className="relative group">
+            <button 
+              className="flex items-center gap-1 hover:text-teal transition-colors"
+              onMouseEnter={() => setResourcesOpen(true)}
+              onMouseLeave={() => setResourcesOpen(false)}
+            >
+              Resources <ChevronRight size={14} className="group-hover:rotate-90 transition-transform" />
+            </button>
+            {resourcesOpen && (
+              <div 
+                className="absolute top-full left-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-slate-200 py-2"
+                onMouseEnter={() => setResourcesOpen(true)}
+                onMouseLeave={() => setResourcesOpen(false)}
+              >
+                <NavLink className="block px-4 py-2 hover:bg-slate-50 hover:text-teal" to="/books" onClick={() => setResourcesOpen(false)}>Books</NavLink>
+                <NavLink className="block px-4 py-2 hover:bg-slate-50 hover:text-teal" to="/live" onClick={() => setResourcesOpen(false)}>Live Classes</NavLink>
+              </div>
+            )}
+          </div>
+
           <NavLink className="hover:text-teal" to="/contact">Contact</NavLink>
-          {user && <NavLink className="hover:text-teal" to="/dashboard">Dashboard</NavLink>}
-          {user && <NavLink className="hover:text-teal" to="/refer"><Gift size={14} className="inline" /> Refer</NavLink>}
-          {isAdmin && <NavLink className="hover:text-teal" to="/admin">Admin</NavLink>}
-        </nav>
-        <div className="hidden items-center gap-2 md:flex">
-          {user ? (
+          
+          {user && (
             <>
-              <span className="text-sm font-semibold text-slate-600">{user.user_metadata?.full_name || user.email}</span>
-              <button className="btn btn-ghost" onClick={handleLogout}><LogOut size={16} /> Logout</button>
-            </>
-          ) : (
-            <>
-              <Link className="btn btn-ghost" to="/login">Login</Link>
-              <Link className="btn btn-primary" to="/signup">Sign Up</Link>
+              <NavLink className="hover:text-teal" to="/dashboard">Dashboard</NavLink>
+              <NavLink className="hover:text-teal flex items-center gap-1" to="/refer"><Gift size={14} /> Refer</NavLink>
             </>
           )}
+          
+          {isAdmin && <NavLink className="hover:text-teal text-teal" to="/admin">Admin</NavLink>}
+        </nav>
+        
+        <div className="hidden items-center gap-3 md:flex">
+          {user ? (
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-semibold text-slate-600">{user.user_metadata?.full_name || user.email}</span>
+              <button className="btn btn-ghost text-sm" onClick={handleLogout}><LogOut size={14} /></button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <Link className="btn btn-ghost text-sm" to="/login">Login</Link>
+              <Link className="btn btn-primary text-sm" to="/signup">Sign Up</Link>
+            </div>
+          )}
         </div>
+        
         <button className="icon-btn md:hidden" aria-label={menuOpen ? 'Close menu' : 'Open menu'} onClick={() => setMenuOpen((o) => !o)}>
           {menuOpen ? <X size={20} /> : <Menu size={20} />}
         </button>
       </div>
+      
       {menuOpen && (
         <div className="mobile-menu md:hidden">
           <nav className="flex flex-col gap-1 p-4">
-            {[['Courses','/courses'],['Books','/books'],['Live Classes','/live'],['Plans','/plans'],['Contact','/contact']].map(([label,to]) => (
-              <NavLink key={to} className="mobile-nav-link" to={to} onClick={closeMenu}>{label}</NavLink>
-            ))}
+            <NavLink className="mobile-nav-link" to="/courses" onClick={closeMenu}>Courses</NavLink>
+            <NavLink className="mobile-nav-link" to="/books" onClick={closeMenu}>Books</NavLink>
+            <NavLink className="mobile-nav-link" to="/live" onClick={closeMenu}>Live Classes</NavLink>
+            <NavLink className="mobile-nav-link" to="/contact" onClick={closeMenu}>Contact</NavLink>
             {user && <NavLink className="mobile-nav-link" to="/dashboard" onClick={closeMenu}>Dashboard</NavLink>}
             {user && <NavLink className="mobile-nav-link" to="/refer" onClick={closeMenu}>🎁 Refer &amp; Earn</NavLink>}
             {isAdmin && <NavLink className="mobile-nav-link" to="/admin" onClick={closeMenu}>Admin</NavLink>}
@@ -362,13 +401,43 @@ function CatalogPage() {
 
 // ─── Course detail ────────────────────────────────────────────────────────────
 function CourseDetailPage({ user, isAdmin }) {
-  const { slug } = useParams(); const course = getCourseBySlug(slug); const navigate = useNavigate();
-  if (!course || (!course.published && !isAdmin)) return <NotFound />;
+  const { slug } = useParams(); 
+  const navigate = useNavigate();
+  const [course, setCourse] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!slug) return;
+    
+    setLoading(true);
+    // Try to get from backend API first
+    getCourseBySlug(slug)
+      .then(data => {
+        if (data) setCourse(data);
+        else {
+          // Fallback to static data
+          const staticCourse = getCourseBySlug(slug);
+          setCourse(staticCourse);
+        }
+      })
+      .catch(() => {
+        // Fallback to static data on error
+        const staticCourse = getCourseBySlug(slug);
+        setCourse(staticCourse);
+      })
+      .finally(() => setLoading(false));
+  }, [slug]);
+
+  if (loading) {
+    return <div className="min-h-screen bg-mist flex items-center justify-center">Loading...</div>;
+  }
+
+  if (!course || (!course.isPublished && !isAdmin)) return <NotFound />;
   const isEnrolled = false;
   function handleEnroll() {
     if (!user) { navigate('/signup'); return; }
     if (course.priceInr === 0 || isEnrolled) navigate(`/dashboard/learn/${course.id}/${getFirstLesson(course)}`);
-    else navigate('/plans');
+    else navigate(`/courses/${course.slug}/insights`);
   }
   return (
     <section className="section">
@@ -574,16 +643,76 @@ function CoursePlayerPage({ user }) {
 
 // ─── Plans ────────────────────────────────────────────────────────────────────
 function PlansPage() {
-  const plans = [['Free',0,'Free courses only',['Course previews','Free course access','Profile dashboard']],['Pro',499,'All published courses',['Everything in Free','All course access','Progress tracking']],['Annual',3999,'All courses plus early access',['Everything in Pro','Early access','Priority updates']]];
+  const [courses, setCourses] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    setLoading(true);
+    getCourses(true)
+      .then(data => setCourses(data))
+      .catch(err => console.error('Failed to load courses:', err))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <section className="section">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-slate-500">Loading courses...</div>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className="section">
-      <SectionTitle eyebrow="Pricing" title="Simple plans for continuous GMP learning" />
-      <div className="mt-10 grid gap-6 md:grid-cols-3">
-        {plans.map(([name, price, access, features]) => (
-          <article className="pricing-card" key={name}>
-            <h2>{name}</h2><strong>{price === 0 ? '₹0' : `₹${price.toLocaleString('en-IN')}`}</strong><p>{access}</p>
-            <ul>{features.map((f) => <li key={f}><CheckCircle2 size={17} /> {f}</li>)}</ul>
-            <Link className="btn btn-primary w-full justify-center" to="/signup">{price === 0 ? 'Start Free' : 'Subscribe'}</Link>
+      <SectionTitle eyebrow="Course Pricing" title="Choose your course to enroll" />
+      <div className="mt-10 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        {courses.map((course) => (
+          <article className="pricing-card" key={course.id}>
+            {course.thumbnailUrl && (
+              <img src={course.thumbnailUrl} alt={course.title} className="w-full h-40 object-cover rounded-t-lg" />
+            )}
+            <div className="p-6">
+              <span className="px-2 py-1 bg-teal/10 text-teal text-xs font-semibold rounded-full">
+                {course.level}
+              </span>
+              <h2 className="mt-3 text-lg font-bold text-navy">{course.title}</h2>
+              <p className="mt-2 text-sm text-slate-600 line-clamp-2">{course.shortDesc}</p>
+              <div className="mt-4 flex items-center justify-between">
+                <strong className="text-2xl text-navy">
+                  {course.priceInr === 0 ? 'Free' : `₹${course.priceInr}`}
+                </strong>
+                <span className="text-sm text-slate-500">
+                  {course.modules.length} modules
+                </span>
+              </div>
+              <ul className="mt-4 space-y-2">
+                <li className="flex items-center gap-2 text-sm text-slate-600">
+                  <CheckCircle2 size={16} className="text-teal" />
+                  Full course access
+                </li>
+                <li className="flex items-center gap-2 text-sm text-slate-600">
+                  <CheckCircle2 size={16} className="text-teal" />
+                  Downloadable materials
+                </li>
+                <li className="flex items-center gap-2 text-sm text-slate-600">
+                  <CheckCircle2 size={16} className="text-teal" />
+                  Certificate of completion
+                </li>
+                <li className="flex items-center gap-2 text-sm text-slate-600">
+                  <CheckCircle2 size={16} className="text-teal" />
+                  Lifetime access
+                </li>
+              </ul>
+              <button
+                onClick={() => navigate(`/checkout/${course.id}`)}
+                className="btn btn-primary mt-6 w-full justify-center"
+              >
+                {course.priceInr === 0 ? 'Enroll Free' : 'Buy Now'}
+              </button>
+            </div>
           </article>
         ))}
       </div>
@@ -665,6 +794,26 @@ function AdminPage({ isAdmin }) {
 }
 
 function AdminCoursesPage({ isAdmin }) {
+  const [courses, setCourses] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    getCourses(false) // Get all courses including drafts
+      .then(data => setCourses(data))
+      .catch(err => console.error('Failed to load courses:', err))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <AdminLayout isAdmin={isAdmin}>
+        <div className="section">
+          <p className="text-slate-400">Loading courses…</p>
+        </div>
+      </AdminLayout>
+    );
+  }
+
   return (
     <AdminLayout isAdmin={isAdmin}>
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
@@ -679,7 +828,7 @@ function AdminCoursesPage({ isAdmin }) {
               <tr key={c.id}>
                 <td><strong>{c.title}</strong><span>{c.shortDesc}</span></td>
                 <td>{c.level}</td><td>{formatPrice(c.priceInr)}</td>
-                <td><span className="badge">{c.published ? 'Published' : 'Draft'}</span></td>
+                <td><span className="badge">{c.isPublished ? 'Published' : 'Draft'}</span></td>
                 <td><Link className="btn btn-ghost" to={`/admin/courses/${c.id}/edit`}>Edit</Link></td>
               </tr>
             ))}
@@ -692,18 +841,54 @@ function AdminCoursesPage({ isAdmin }) {
 
 function AdminCourseFormPage({ isAdmin }) {
   const { id: editId } = useParams(); const navigate = useNavigate();
-  const existingCourse = editId ? courses.find((c) => c.id === editId) : null;
-  const [title, setTitle] = useState(existingCourse?.title ?? '');
-  const [slug, setSlug] = useState(existingCourse?.slug ?? '');
-  const [shortDesc, setShortDesc] = useState(existingCourse?.shortDesc ?? '');
-  const [description, setDescription] = useState(existingCourse?.description ?? '');
-  const [level, setLevel] = useState(existingCourse?.level ?? 'Intermediate');
-  const [priceInr, setPriceInr] = useState(existingCourse?.priceInr ?? 999);
-  const [thumbnail, setThumbnail] = useState(existingCourse?.thumbnail ?? '');
-  const [published, setPublished] = useState(existingCourse?.published ?? false);
-  const [modules, setModules] = useState(existingCourse?.modules.map((m) => ({ title: m.title, lessons: m.lessons.map((l) => ({ title: l.title, duration: l.duration, videoUrl: l.videoUrl ?? '', attachmentUrl: l.attachmentUrl ?? '', isPreview: l.isPreview ?? false, notes: l.notes ?? '' })) })) ?? [{ title: '', lessons: [{ title: '', duration: '10 min', videoUrl: '', attachmentUrl: '', isPreview: false, notes: '' }] }]);
+  const [loading, setLoading] = useState(false);
+  const [title, setTitle] = useState('');
+  const [slug, setSlug] = useState('');
+  const [shortDesc, setShortDesc] = useState('');
+  const [description, setDescription] = useState('');
+  const [level, setLevel] = useState('INTERMEDIATE');
+  const [priceInr, setPriceInr] = useState(999);
+  const [thumbnail, setThumbnail] = useState('');
+  const [published, setPublished] = useState(false);
+  const [modules, setModules] = useState([{ title: '', lessons: [{ title: '', duration: '10 min', videoUrl: '', attachmentUrl: '', isPreview: false, notes: '' }] }]);
   const [toast, setToast] = useState('');
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(null); // Track which file is uploading
+  
+  // Load course data if editing
+  useEffect(() => {
+    if (editId) {
+      setLoading(true);
+      getCourseById(editId)
+        .then(course => {
+          setTitle(course.title);
+          setSlug(course.slug);
+          setShortDesc(course.shortDesc);
+          setDescription(course.description);
+          setLevel(course.level);
+          setPriceInr(course.priceInr);
+          setThumbnail(course.thumbnailUrl || '');
+          setPublished(course.isPublished);
+          setModules(course.modules.map(m => ({
+            title: m.title,
+            lessons: m.lessons.map(l => ({
+              title: l.title,
+              duration: l.videoDuration ? `${Math.floor(l.videoDuration / 60)} min` : '10 min',
+              videoUrl: l.videoUrl || '',
+              attachmentUrl: l.attachmentUrl || '',
+              isPreview: l.isPreview,
+              notes: l.contentText || '',
+            }))
+          })));
+        })
+        .catch(err => {
+          console.error('Failed to load course:', err);
+          showToast('❌ Failed to load course');
+        })
+        .finally(() => setLoading(false));
+    }
+  }, [editId]);
+
   function showToast(msg) { setToast(msg); setTimeout(() => setToast(''), 3500); }
   function addModule() { setModules([...modules, { title: '', lessons: [{ title: '', duration: '10 min', videoUrl: '', attachmentUrl: '', isPreview: false, notes: '' }] }]); }
   function removeModule(mi) { setModules(modules.filter((_, i) => i !== mi)); }
@@ -711,20 +896,129 @@ function AdminCourseFormPage({ isAdmin }) {
   function addLesson(mi) { setModules(modules.map((m, i) => i === mi ? { ...m, lessons: [...m.lessons, { title: '', duration: '10 min', videoUrl: '', attachmentUrl: '', isPreview: false, notes: '' }] } : m)); }
   function removeLesson(mi, li) { setModules(modules.map((m, i) => i === mi ? { ...m, lessons: m.lessons.filter((_, j) => j !== li) } : m)); }
   function updateLesson(mi, li, field, value) { setModules(modules.map((m, i) => i === mi ? { ...m, lessons: m.lessons.map((l, j) => j === li ? { ...l, [field]: value } : l) } : m)); }
+  
+  async function handleThumbnailUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    setUploading('thumbnail');
+    try {
+      const result = await uploadThumbnail(file);
+      setThumbnail(result.url);
+      showToast('✅ Thumbnail uploaded successfully!');
+    } catch (error) {
+      console.error('Upload error:', error);
+      showToast('❌ Failed to upload thumbnail');
+    } finally {
+      setUploading(null);
+    }
+  }
+
+  async function handleVideoUpload(mi, li, e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    setUploading(`video-${mi}-${li}`);
+    try {
+      const result = await uploadVideo(file, modules[mi].lessons[li].title);
+      updateLesson(mi, li, 'videoUrl', result.playbackUrl);
+      updateLesson(mi, li, 'videoStreamId', result.videoId);
+      showToast('✅ Video uploaded successfully!');
+    } catch (error) {
+      console.error('Upload error:', error);
+      showToast('❌ Failed to upload video');
+    } finally {
+      setUploading(null);
+    }
+  }
+
+  async function handleMaterialUpload(mi, li, e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    setUploading(`material-${mi}-${li}`);
+    try {
+      const result = await uploadMaterial(file);
+      updateLesson(mi, li, 'attachmentUrl', result.url);
+      showToast('✅ Material uploaded successfully!');
+    } catch (error) {
+      console.error('Upload error:', error);
+      showToast('❌ Failed to upload material');
+    } finally {
+      setUploading(null);
+    }
+  }
+  
   async function handleSave(e) {
     e.preventDefault(); setSaving(true);
-    const courseData = { slug, title, short_desc: shortDesc, description, level, price_inr: Number(priceInr), thumbnail_url: thumbnail, is_published: published };
-    if (hasSupabaseConfig) {
-      const { error } = await supabase.from('courses').upsert(courseData, { onConflict: 'slug' });
+    
+    const courseData = {
+      slug,
+      title,
+      shortDesc,
+      description,
+      level,
+      priceInr: Number(priceInr),
+      thumbnailUrl: thumbnail,
+      isPublished: published,
+      whatYouWillLearn: [],
+      modules: modules.map((mod, modIndex) => ({
+        title: mod.title,
+        sortOrder: modIndex,
+        lessons: mod.lessons.map((lesson, lessonIndex) => ({
+          title: lesson.title,
+          contentText: lesson.notes,
+          videoUrl: lesson.videoUrl,
+          videoDuration: parseDuration(lesson.duration),
+          attachmentUrl: lesson.attachmentUrl,
+          isPreview: lesson.isPreview,
+          sortOrder: lessonIndex,
+        }))
+      }))
+    };
+
+    try {
+      if (editId) {
+        await updateCourse(editId, courseData);
+        showToast('✅ Course updated successfully!');
+      } else {
+        await createCourse(courseData);
+        showToast('✅ Course created successfully!');
+      }
+      setTimeout(() => navigate('/admin/courses'), 1000);
+    } catch (error) {
+      console.error('Save error:', error);
+      showToast(`❌ Failed to save: ${error.message || 'Unknown error'}`);
+    } finally {
       setSaving(false);
-      if (error) { showToast('❌ Failed to save. Try again.'); return; }
-      showToast('✅ Course published successfully!');
-    } else { setSaving(false); showToast('✅ Changes saved (Supabase not connected).'); }
+    }
+  }
+
+  function parseDuration(duration) {
+    if (!duration) return 600;
+    const match = duration.match(/(\d+)\s*(min|minute|minutes|hr|hour|hours)/i);
+    if (!match) return 600;
+    const value = parseInt(match[1]);
+    const unit = match[2].toLowerCase();
+    if (unit.startsWith('hr') || unit.startsWith('hour')) {
+      return value * 60;
+    }
+    return value;
+  }
+
+  if (loading) {
+    return (
+      <AdminLayout isAdmin={isAdmin}>
+        <div className="section">
+          <p className="text-slate-400">Loading course data…</p>
+        </div>
+      </AdminLayout>
+    );
   }
   return (
     <AdminLayout isAdmin={isAdmin}>
       <div className="flex items-center justify-between gap-4">
-        <SectionTitle eyebrow={existingCourse ? 'Edit Course' : 'New Course'} title={existingCourse ? `Editing: ${existingCourse.title}` : 'Create a new course'} />
+        <SectionTitle eyebrow={editId ? 'Edit Course' : 'New Course'} title={editId ? 'Edit Course' : 'Create a new course'} />
         <button className="btn btn-ghost" onClick={() => navigate('/admin/courses')}><ArrowLeft size={16} /> Back</button>
       </div>
       {toast && <div className="mt-4 rounded bg-teal/10 px-4 py-3 font-semibold text-teal">{toast}</div>}
@@ -742,7 +1036,12 @@ function AdminCourseFormPage({ isAdmin }) {
             <label>Price (₹ INR — 0 for free)<input type="number" min="0" value={priceInr} onChange={e => setPriceInr(e.target.value)} /></label>
             <label>Status<select value={published ? 'published' : 'draft'} onChange={e => setPublished(e.target.value === 'published')}><option value="draft">Draft (hidden)</option><option value="published">Published (live)</option></select></label>
           </div>
-          <label className="mt-4 block">Thumbnail URL<input value={thumbnail} onChange={e => setThumbnail(e.target.value)} placeholder="https://..." /></label>
+          <label className="mt-4 block">Thumbnail</label>
+          <div className="flex gap-3">
+            <input type="file" accept="image/*" onChange={handleThumbnailUpload} className="flex-1" disabled={uploading === 'thumbnail'} />
+            <input value={thumbnail} onChange={e => setThumbnail(e.target.value)} placeholder="Or paste URL" className="flex-1" />
+          </div>
+          {uploading === 'thumbnail' && <p className="mt-2 text-sm text-slate-500">Uploading...</p>}
           {thumbnail && <img src={thumbnail} alt="" className="mt-3 h-36 w-full rounded object-cover" onError={e => e.target.style.display='none'} />}
         </div>
         <div>
@@ -768,8 +1067,18 @@ function AdminCourseFormPage({ isAdmin }) {
                         <label>Lesson title<input value={lesson.title} onChange={e => updateLesson(mi, li, 'title', e.target.value)} placeholder="Lesson title" /></label>
                         <label>Duration<input value={lesson.duration} onChange={e => updateLesson(mi, li, 'duration', e.target.value)} placeholder="10 min" /></label>
                       </div>
-                      <label className="mt-3 block">Video URL<input value={lesson.videoUrl} onChange={e => updateLesson(mi, li, 'videoUrl', e.target.value)} placeholder="https://... or /videos/filename.mp4" /></label>
-                      <label className="mt-3 block">Attachment URL (PDF / PPT)<input value={lesson.attachmentUrl} onChange={e => updateLesson(mi, li, 'attachmentUrl', e.target.value)} placeholder="/materials/filename.pdf" /></label>
+                      <label className="mt-3 block">Video</label>
+                      <div className="flex gap-3">
+                        <input type="file" accept="video/*" onChange={(e) => handleVideoUpload(mi, li, e)} className="flex-1" disabled={uploading === `video-${mi}-${li}`} />
+                        <input value={lesson.videoUrl} onChange={e => updateLesson(mi, li, 'videoUrl', e.target.value)} placeholder="Or paste URL" className="flex-1" />
+                      </div>
+                      {uploading === `video-${mi}-${li}` && <p className="mt-2 text-sm text-slate-500">Uploading video...</p>}
+                      <label className="mt-3 block">Attachment (PDF / PPT)</label>
+                      <div className="flex gap-3">
+                        <input type="file" accept=".pdf,.ppt,.pptx,.doc,.docx" onChange={(e) => handleMaterialUpload(mi, li, e)} className="flex-1" disabled={uploading === `material-${mi}-${li}`} />
+                        <input value={lesson.attachmentUrl} onChange={e => updateLesson(mi, li, 'attachmentUrl', e.target.value)} placeholder="Or paste URL" className="flex-1" />
+                      </div>
+                      {uploading === `material-${mi}-${li}` && <p className="mt-2 text-sm text-slate-500">Uploading material...</p>}
                       <label className="mt-3 block">Lesson notes<textarea value={lesson.notes} onChange={e => updateLesson(mi, li, 'notes', e.target.value)} rows="3" placeholder="Notes shown below the video" /></label>
                       <label className="mt-3 flex items-center gap-2 font-normal"><input type="checkbox" checked={lesson.isPreview} onChange={e => updateLesson(mi, li, 'isPreview', e.target.checked)} />Free preview (visible without enrollment)</label>
                     </div>
@@ -879,7 +1188,7 @@ function Footer() {
     <footer className="border-t border-slate-200 bg-white">
       <div className="mx-auto flex max-w-7xl flex-col justify-between gap-6 px-4 py-8 text-sm text-slate-600 sm:px-6 md:flex-row lg:px-8">
         <div>
-          <strong className="font-display text-navy">NextGen Pharma Solutions</strong>
+          <strong className="font-display text-navy">NextGen Pharma</strong>
           <p className="mt-2">Contact: harideepsingh13@gmail.com</p>
         </div>
         <div className="flex flex-wrap gap-4">
@@ -889,6 +1198,12 @@ function Footer() {
           <Link to="/plans">Plans</Link>
           <Link to="/contact">Contact</Link>
           <Link to="/refer">Refer &amp; Earn</Link>
+          <Link to="/about">About Us</Link>
+        </div>
+        <div className="flex flex-wrap gap-4">
+          <Link to="/privacy-policy">Privacy Policy</Link>
+          <Link to="/terms-conditions">Terms & Conditions</Link>
+          <Link to="/refund-policy">Refund Policy</Link>
           <a href="https://www.linkedin.com/in/harish-singh-29b39b46/" target="_blank" rel="noreferrer">LinkedIn</a>
         </div>
       </div>
@@ -906,13 +1221,17 @@ export default function App() {
         <Route path="/" element={<LandingPage />} />
         <Route path="/courses" element={<CatalogPage />} />
         <Route path="/courses/:slug" element={<CourseDetailPage user={user} isAdmin={isAdmin} />} />
-        <Route path="/plans" element={<PlansPage />} />
-        <Route path="/pricing" element={<PlansPage />} />
+        <Route path="/courses/:slug/insights" element={<CourseInsights />} />
+        <Route path="/checkout/:courseId" element={<CheckoutPage />} />
         <Route path="/books" element={<Books />} />
         <Route path="/live" element={<LiveClasses />} />
         <Route path="/contact" element={<Contact />} />
         <Route path="/refer" element={<ReferFriends user={user} />} />
         <Route path="/ref/:code" element={<ReferralRedirect />} />
+        <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+        <Route path="/terms-conditions" element={<TermsConditions />} />
+        <Route path="/refund-policy" element={<RefundPolicy />} />
+        <Route path="/about" element={<AboutUs />} />
 
         <Route path="/login" element={user ? <Navigate to="/dashboard" replace /> : <LoginPage />} />
         <Route path="/signup" element={user ? <Navigate to="/dashboard" replace /> : <SignupPage />} />
