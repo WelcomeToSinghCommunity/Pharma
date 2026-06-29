@@ -55,8 +55,24 @@ io.on('connection', (socket) => {
 app.use(helmet({
   crossOriginEmbedderPolicy: false,
 }));
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://nextgenpharma.vercel.app',
+  'https://nextgenpharma.vercel.app'
+];
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  origin: function (origin, callback) {
+    // allow requests with no origin (like mobile apps, curl, or local testing)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.indexOf(origin) !== -1 || origin.startsWith('http://localhost') || origin.startsWith('http://127.0.0.1')) {
+      return callback(null, true);
+    }
+    const msg = 'The CORS policy for this site does not allow access from origin: ' + origin;
+    return callback(new Error(msg), false);
+  },
   credentials: true,
 }));
 app.use(express.json({ limit: '50mb' }));

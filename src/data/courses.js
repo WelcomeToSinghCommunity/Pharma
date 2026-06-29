@@ -22,7 +22,7 @@ export const courses = [
     description:
       'A comprehensive guide to Out-of-Specification investigations across global regulatory expectations, covering initial assessment, root cause analysis, documentation, reporting, CAPA, and continuous improvement.',
     thumbnail:
-      'https://images.unsplash.com/photo-1582719471384-894fbb16e074?auto=format&fit=crop&w=1200&q=80',
+      'https://images.unsplash.com/photo-1582719471384-894fbb16e074?auto=format&fit=crop&w=600&q=60',
     instructor: 'Harish Singh',
     level: 'Intermediate',
     priceInr: 1499,
@@ -87,7 +87,7 @@ export const courses = [
     description:
       'A practical guide to qualifying instruments and equipment per USP, EU GMP Annex 15, and GAMP 5 standards, with documentation and lifecycle control expectations.',
     thumbnail:
-      'https://images.unsplash.com/photo-1581093588401-fbb62a02f120?auto=format&fit=crop&w=1200&q=80',
+      'https://images.unsplash.com/photo-1581093588401-fbb62a02f120?auto=format&fit=crop&w=600&q=60',
     instructor: 'Harish Singh',
     level: 'Beginner',
     priceInr: 999,
@@ -158,7 +158,7 @@ export const courses = [
     description:
       'Master airflow visualization studies in sterile pharmaceutical environments, from HVAC design to QA responsibilities and regulatory compliance.',
     thumbnail:
-      'https://images.unsplash.com/photo-1581093458791-9f3c3900df4b?auto=format&fit=crop&w=1200&q=80',
+      'https://images.unsplash.com/photo-1581093458791-9f3c3900df4b?auto=format&fit=crop&w=600&q=60',
     instructor: 'Harish Singh',
     level: 'Advanced',
     priceInr: 1999,
@@ -226,7 +226,7 @@ export const courses = [
     description:
       'Practical guidance on implementing Computer Software Assurance guidelines and preparing for future FDA authority audits.',
     thumbnail:
-      'https://images.unsplash.com/photo-1551434678-e076c223a692?auto=format&fit=crop&w=1200&q=80',
+      'https://images.unsplash.com/photo-1551434678-e076c223a692?auto=format&fit=crop&w=600&q=60',
     instructor: 'Harish Singh',
     level: 'Intermediate',
     priceInr: 0,

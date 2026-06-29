@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Check, ArrowLeft, Lock, PlayCircle, FileText, Award, Clock, Users, Star } from 'lucide-react';
+import { getCourseBySlug as getCourseBySlugStatic } from '../data/courses.js';
 
 export default function CheckoutPage() {
   const { slug } = useParams();
@@ -21,8 +22,18 @@ export default function CheckoutPage() {
         else throw new Error('Course not found');
       })
       .catch(err => {
-        console.error('Failed to load course:', err);
-        setCourse(null);
+        console.error('Failed to load course from API, trying static fallback:', err);
+        try {
+          const staticCourse = getCourseBySlugStatic(slug);
+          if (staticCourse) {
+            setCourse(staticCourse);
+          } else {
+            setCourse(null);
+          }
+        } catch (staticErr) {
+          console.error('Failed to load static course:', staticErr);
+          setCourse(null);
+        }
       })
       .finally(() => setLoading(false));
   }, [slug]);
