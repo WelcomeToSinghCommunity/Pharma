@@ -792,3 +792,239 @@ td span {
   animation: spin 0.8s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* ============================================
+   DARK MODE PREMIUM OVERRIDES
+   ============================================ */
+
+.dark body {
+  background-color: #0b0f19 !important;
+  color: #f8fafc !important;
+}
+
+.dark .bg-white {
+  background-color: #151e2e !important;
+}
+
+.dark .bg-mist {
+  background-color: #0b0f19 !important;
+}
+
+.dark .text-navy {
+  color: #f8fafc !important;
+}
+
+.dark .text-slate-600 {
+  color: #cbd5e1 !important;
+}
+
+.dark .text-slate-700 {
+  color: #cbd5e1 !important;
+}
+
+.dark .text-slate-500 {
+  color: #94a3b8 !important;
+}
+
+.dark .text-slate-400 {
+  color: #94a3b8 !important;
+}
+
+.dark .border-slate-200 {
+  border-color: #243249 !important;
+}
+
+.dark .border-slate-100 {
+  border-color: #1e293b !important;
+}
+
+.dark .bg-slate-50 {
+  background-color: #0f172a !important;
+}
+
+.dark .bg-slate-100 {
+  background-color: #1e293b !important;
+}
+
+.dark .bg-slate-200 {
+  background-color: #243249 !important;
+}
+
+.dark header {
+  background-color: rgba(11, 15, 25, 0.9) !important;
+  border-color: rgba(36, 50, 73, 0.8) !important;
+}
+
+.dark header nav a,
+.dark header button {
+  color: #cbd5e1 !important;
+}
+
+.dark header nav a:hover,
+.dark header button:hover {
+  color: #0d9488 !important;
+}
+
+.dark footer {
+  background-color: #0b0f19 !important;
+  border-color: #1e293b !important;
+}
+
+.dark footer a {
+  color: #94a3b8 !important;
+}
+
+.dark footer a:hover {
+  color: #f8fafc !important;
+}
+
+.dark .course-card,
+.dark .value-card,
+.dark .quote-card,
+.dark .pricing-card,
+.dark .panel,
+.dark .metric-card,
+.dark .learning-card,
+.dark .dashboard-nav,
+.dark .lesson-sidebar {
+  background-color: #151e2e !important;
+  border-color: #243249 !important;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25) !important;
+}
+
+.dark .btn-primary {
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+}
+
+.dark .btn-primary:hover {
+  background-color: #cbd5e1 !important;
+}
+
+.dark .btn-outline {
+  border-color: #243249 !important;
+  background-color: transparent !important;
+  color: #f8fafc !important;
+}
+
+.dark .btn-outline:hover {
+  background-color: #1e293b !important;
+}
+
+.dark .btn-ghost {
+  color: #cbd5e1 !important;
+}
+
+.dark .btn-ghost:hover {
+  background-color: #1e293b !important;
+}
+
+.dark input,
+.dark textarea,
+.dark select,
+.dark .search-box {
+  background-color: #0f172a !important;
+  border-color: #243249 !important;
+  color: #f8fafc !important;
+}
+
+.dark .outline-lesson {
+  background-color: #0f172a !important;
+  border-color: #243249 !important;
+  color: #cbd5e1 !important;
+}
+
+.dark .outline-lesson.active {
+  background-color: rgba(13, 148, 136, 0.15) !important;
+  border-color: #0d9488 !important;
+  color: #2dd4bf !important;
+}
+
+.dark .lesson-row {
+  background-color: #0f172a !important;
+  color: #cbd5e1 !important;
+}
+
+.dark .curriculum-item summary {
+  color: #f8fafc !important;
+}
+
+.dark table th {
+  color: #94a3b8 !important;
+  background-color: #0f172a !important;
+}
+
+.dark table td {
+  border-color: #243249 !important;
+  color: #f8fafc !important;
+}
+
+.dark table td span {
+  color: #94a3b8 !important;
+}
+
+.dark .empty-state {
+  border-color: #243249 !important;
+  color: #94a3b8 !important;
+}
+
+.dark .content-only-banner {
+  background-color: rgba(13, 148, 136, 0.15) !important;
+  border-color: #0d9488 !important;
+  color: #2dd4bf !important;
+}
+
+.dark .dashboard-nav nav a {
+  color: #cbd5e1 !important;
+}
+
+.dark .dashboard-nav nav a.active,
+.dark .dashboard-nav nav a:hover {
+  background-color: rgba(13, 148, 136, 0.15) !important;
+  color: #2dd4bf !important;
+}
+
+.dark .stats-band {
+  background-color: #243249 !important;
+}
+
+.dark .stats-band div {
+  background-color: #151e2e !important;
+}
+
+.dark .stats-band strong {
+  color: #f8fafc !important;
+}
+
+.dark .stats-band span {
+  color: #94a3b8 !important;
+}
+
+.dark .label,
+.dark label {
+  color: #cbd5e1 !important;
+}
+
+.dark .mobile-menu {
+  background-color: #151e2e !important;
+  border-color: #243249 !important;
+}
+
+.dark .mobile-nav-link {
+  color: #cbd5e1 !important;
+}
+
+.dark .mobile-nav-link.active,
+.dark .mobile-nav-link:hover {
+  background-color: rgba(13, 148, 136, 0.15) !important;
+  color: #2dd4bf !important;
+}
+
+.dark .quote-card footer {
+  color: #2dd4bf !important;
+}
+
+.dark .eyebrow-dark {
+  color: #2dd4bf !important;
+}
+

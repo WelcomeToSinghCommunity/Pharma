@@ -1,7 +1,6 @@
 import express from 'express';
 import prisma from '../config/database.js';
-import { deleteFromR2 } from '../services/r2Service.js';
-import { deleteVideoFromStream } from '../services/streamService.js';
+import { deleteThumbnail, deleteMaterial, deleteVideo } from '../services/supabaseStorageService.js';
 
 const router = express.Router();
 
@@ -312,22 +311,23 @@ router.delete('/:id', async (req, res) => {
       return res.status(404).json({ error: 'Course not found' });
     }
 
-    // Delete associated files from Cloudflare
+    // Delete associated files from Supabase Storage
     if (course.thumbnailUrl) {
       try {
         const key = course.thumbnailUrl.split('/').pop();
-        await deleteFromR2(`thumbnails/${key}`);
+        await deleteThumbnail(key);
       } catch (error) {
         console.error('Failed to delete thumbnail:', error);
       }
     }
 
-    // Delete videos from Stream
+    // Delete videos and materials from Supabase Storage
     for (const module of course.modules) {
       for (const lesson of module.lessons) {
-        if (lesson.videoStreamId) {
+        if (lesson.videoUrl) {
           try {
-            await deleteVideoFromStream(lesson.videoStreamId);
+            const key = lesson.videoUrl.split('/').pop();
+            await deleteVideo(key);
           } catch (error) {
             console.error('Failed to delete video:', error);
           }
@@ -335,7 +335,7 @@ router.delete('/:id', async (req, res) => {
         if (lesson.attachmentUrl) {
           try {
             const key = lesson.attachmentUrl.split('/').pop();
-            await deleteFromR2(`materials/${key}`);
+            await deleteMaterial(key);
           } catch (error) {
             console.error('Failed to delete attachment:', error);
           }
@@ -498,9 +498,10 @@ router.delete('/lessons/:id', async (req, res) => {
     const lesson = await prisma.lesson.findUnique({ where: { id } });
     
     if (lesson) {
-      if (lesson.videoStreamId) {
+      if (lesson.videoUrl) {
         try {
-          await deleteVideoFromStream(lesson.videoStreamId);
+          const key = lesson.videoUrl.split('/').pop();
+          await deleteVideo(key);
         } catch (error) {
           console.error('Failed to delete video:', error);
         }
@@ -508,7 +509,7 @@ router.delete('/lessons/:id', async (req, res) => {
       if (lesson.attachmentUrl) {
         try {
           const key = lesson.attachmentUrl.split('/').pop();
-          await deleteFromR2(`materials/${key}`);
+          await deleteMaterial(key);
         } catch (error) {
           console.error('Failed to delete attachment:', error);
         }

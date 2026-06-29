@@ -4,13 +4,14 @@ import {
   ArrowLeft, BarChart3, BookOpen, CheckCircle2, ChevronRight, ClipboardCheck,
   Download, Gift, LayoutDashboard, Lock, LogOut, Mail, MapPin, Menu, MessageSquare,
   Phone, Play, Plus, Radio, Search, ShieldCheck, UploadCloud, UserRound, Users, Video, X,
+  Sun, Moon,
 } from 'lucide-react';
 import {
-  courses, getCourseBySlug as getCourseBySlugStatic, getLessonById, getLessonCount, getModuleCount, makeLessonId,
+  courses as staticCourses, getCourseBySlug as getCourseBySlugStatic, getLessonById, getLessonCount, getModuleCount, makeLessonId,
 } from './data/courses.js';
 import { supabase, hasSupabaseConfig } from './lib/supabase.js';
 import {
-  getCourses, getCourseById, createCourse, updateCourse, deleteCourse,
+  getCourses, getCourseBySlug, getCourseById, createCourse, updateCourse, deleteCourse,
   uploadThumbnail, uploadMaterial, uploadVideo,
 } from './lib/api.js';
 import VideoPlayer from './components/VideoPlayer.jsx';
@@ -46,7 +47,7 @@ function useAuth() {
   return { session, user, isAdmin, loading: session === undefined };
 }
 
-const publishedCourses = courses.filter((c) => c.published);
+const publishedCourses = staticCourses.filter((c) => c.published);
 function formatPrice(p) { return p === 0 ? 'Free' : `₹${p.toLocaleString('en-IN')}`; }
 function getFirstLesson(course) { return makeLessonId(course.modules[0].title, 0); }
 
@@ -61,6 +62,20 @@ function Header({ user, isAdmin }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [resourcesOpen, setResourcesOpen] = useState(false);
   const resourcesRef = useRef(null);
+
+  const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light');
+
+  useEffect(() => {
+    const root = window.document.documentElement;
+    if (theme === 'dark') {
+      root.classList.add('dark');
+    } else {
+      root.classList.remove('dark');
+    }
+    localStorage.setItem('theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
   
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -112,6 +127,14 @@ function Header({ user, isAdmin }) {
         </nav>
         
         <div className="hidden items-center gap-3 md:flex">
+          <button
+            onClick={toggleTheme}
+            className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-600 transition-all hover:bg-slate-100 hover:text-teal focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-teal"
+            aria-label="Toggle theme"
+          >
+            {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
+          </button>
+
           {user ? (
             <div className="flex items-center gap-3">
               <span className="text-sm font-semibold text-slate-600">{user.user_metadata?.full_name || user.email}</span>
@@ -142,6 +165,24 @@ function Header({ user, isAdmin }) {
             {isAdmin && <NavLink className="mobile-nav-link" to="/admin" onClick={closeMenu}>Admin</NavLink>}
           </nav>
           <div className="border-t border-slate-100 p-4">
+            <div className="mb-4 flex items-center justify-between">
+              <span className="text-sm font-semibold text-slate-500">Theme</span>
+              <button
+                onClick={toggleTheme}
+                className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-slate-600 transition-all hover:bg-slate-100 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-slate-800"
+              >
+                {theme === 'light' ? (
+                  <>
+                    <Moon size={16} /> <span>Dark Mode</span>
+                  </>
+                ) : (
+                  <>
+                    <Sun size={16} /> <span>Light Mode</span>
+                  </>
+                )}
+              </button>
+            </div>
+
             {user ? (
               <div className="flex flex-col gap-3">
                 <span className="text-sm font-semibold text-slate-600">{user.user_metadata?.full_name || user.email}</span>
@@ -527,7 +568,7 @@ function DashboardLayout({ user, children }) {
 }
 
 function DashboardPage({ user }) {
-  const enrolled = courses.filter((c) => c.priceInr === 0);
+  const enrolled = staticCourses.filter((c) => c.priceInr === 0);
   return (
     <DashboardLayout user={user}>
       <SectionTitle eyebrow="Dashboard" title="Welcome back to your learning workspace" />
@@ -578,7 +619,7 @@ function ProfilePage({ user }) {
 // ─── Course Player ────────────────────────────────────────────────────────────
 function CoursePlayerPage({ user }) {
   const { courseId, lessonId } = useParams(); const navigate = useNavigate();
-  const course = courses.find((c) => c.id === courseId) ?? courses[0];
+  const course = staticCourses.find((c) => c.id === courseId) ?? staticCourses[0];
   const allLessons = course.modules.flatMap((mod, mi) =>
     mod.lessons.map((lesson, li) => ({ ...lesson, id: makeLessonId(mod.title, li), moduleTitle: mod.title, moduleIndex: mi, lessonIndex: li }))
   );
@@ -662,7 +703,10 @@ function PlansPage() {
     setLoading(true);
     getCourses(true)
       .then(data => setCourses(data))
-      .catch(err => console.error('Failed to load courses:', err))
+      .catch(err => {
+        console.error('Failed to load courses:', err);
+        setCourses(staticCourses);
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -682,8 +726,8 @@ function PlansPage() {
       <div className="mt-10 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {courses.map((course) => (
           <article className="pricing-card" key={course.id}>
-            {course.thumbnailUrl && (
-              <img src={course.thumbnailUrl} alt={course.title} className="w-full h-40 object-cover rounded-t-lg" />
+            {(course.thumbnailUrl || course.thumbnail) && (
+              <img src={course.thumbnailUrl || course.thumbnail} alt={course.title} className="w-full h-40 object-cover rounded-t-lg" />
             )}
             <div className="p-6">
               <span className="px-2 py-1 bg-teal/10 text-teal text-xs font-semibold rounded-full">
@@ -817,13 +861,13 @@ function AdminCoursesPage({ isAdmin }) {
           setCourses(data);
         } else {
           // Fallback to static data
-          setCourses(courses);
+          setCourses(staticCourses);
         }
       })
       .catch(err => {
         console.error('Failed to load courses:', err);
         // Fallback to static data on error
-        setCourses(courses);
+        setCourses(staticCourses);
       })
       .finally(() => setLoading(false));
   }, []);
@@ -859,7 +903,7 @@ function AdminCoursesPage({ isAdmin }) {
                 <tr key={c.id}>
                   <td><strong>{c.title}</strong><span>{c.shortDesc}</span></td>
                   <td>{c.level}</td><td>{formatPrice(c.priceInr)}</td>
-                  <td><span className="badge">{c.isPublished ? 'Published' : 'Draft'}</span></td>
+                  <td><span className="badge">{(c.isPublished ?? c.published) ? 'Published' : 'Draft'}</span></td>
                   <td><Link className="btn btn-ghost" to={`/admin/courses/${c.id}/edit`}>Edit</Link></td>
                 </tr>
               ))
@@ -914,8 +958,32 @@ function AdminCourseFormPage({ isAdmin }) {
           })));
         })
         .catch(err => {
-          console.error('Failed to load course:', err);
-          showToast('❌ Failed to load course');
+          console.error('Failed to load course from API:', err);
+          // Try to fallback to static courses
+          const staticCourse = staticCourses.find(c => c.id === editId || c.slug === editId);
+          if (staticCourse) {
+            setTitle(staticCourse.title);
+            setSlug(staticCourse.slug);
+            setShortDesc(staticCourse.shortDesc);
+            setDescription(staticCourse.description);
+            setLevel(staticCourse.level.toUpperCase());
+            setPriceInr(staticCourse.priceInr);
+            setThumbnail(staticCourse.thumbnail || '');
+            setPublished(staticCourse.published);
+            setModules(staticCourse.modules.map(m => ({
+              title: m.title,
+              lessons: m.lessons.map(l => ({
+                title: l.title,
+                duration: l.duration || '10 min',
+                videoUrl: l.videoUrl || '',
+                attachmentUrl: l.attachmentUrl || '',
+                isPreview: l.isPreview,
+                notes: l.notes || '',
+              }))
+            })));
+          } else {
+            showToast('❌ Failed to load course');
+          }
         })
         .finally(() => setLoading(false));
     }
