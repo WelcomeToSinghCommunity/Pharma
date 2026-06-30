@@ -73,6 +73,8 @@ export default function CheckoutPage({ user }) {
             razorpaySignature: 'mock_signature_valid',
             courseId: course.id,
             userId: user?.id || 'mock-user-id',
+            email: user?.email || '',
+            fullName: user?.user_metadata?.full_name || '',
           }),
         });
 
@@ -108,6 +110,8 @@ export default function CheckoutPage({ user }) {
                 razorpaySignature: response.razorpay_signature,
                 courseId: course.id,
                 userId: user?.id || 'mock-user-id',
+                email: user?.email || '',
+                fullName: user?.user_metadata?.full_name || '',
               }),
             });
 
