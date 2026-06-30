@@ -429,7 +429,7 @@ function LandingPage() {
           <div className="flex flex-col justify-center">
             <span className="eyebrow">Pharmaceutical QA/QC Training Platform</span>
             <h1 className="mt-5 font-display text-4xl font-extrabold leading-tight text-white sm:text-5xl lg:text-6xl">
-              GMP &amp; Regulatory compliance training designed by <span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-300 to-emerald-200 font-extrabold">Harish C. Singh</span>.
+              GMP &amp; Regulatory compliance training designed by <span className="gradient-text font-extrabold">Harish C. Singh</span>.
             </h1>
             <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-200">
               NextGen Pharma Solutions — a dynamic learning ecosystem to empower pharma talent, drive career growth,
@@ -498,7 +498,7 @@ function LandingPage() {
             <span className="eyebrow-dark">About the Founder</span>
             <h2 className="mt-3 font-display text-3xl font-bold text-navy">Harish C. Singh</h2>
             <p className="mt-1 text-base font-semibold text-teal flex items-center gap-2">
-              Deputy Manager QCC &bull; M.Tech BITS Pilani
+              Quality &amp; Compliance Expert &bull; M.Tech BITS Pilani
             </p>
             <p className="mt-4 leading-8 text-slate-600">NextGen Pharma Solutions was founded with a single mission — to help pharmaceutical professionals flourish, upskill, showcase expertise, expand networks, and achieve their dream roles in the global pharmaceutical landscape.</p>
             <p className="mt-3 leading-8 text-slate-600">Harish brings Quality Control and Compliance leadership experience into focused, practical lessons built from real industry workflows across QA/QC, Regulatory Affairs, Manufacturing, and Analytical Method Validation.</p>
@@ -1611,8 +1611,9 @@ export default function App() {
     getAnnouncement()
       .then(data => {
         setAnnouncement(data);
-        const dismissed = localStorage.getItem('announcement_dismissed_v1') === 'true';
-        setAnnouncementOpen(data.show && !dismissed);
+        const dismissedText = localStorage.getItem('announcement_dismissed_text');
+        const isNewAnnouncement = dismissedText !== data.text;
+        setAnnouncementOpen(data.show && (isNewAnnouncement || !dismissedText));
       })
       .catch(err => {
         console.error('Failed to load announcement config:', err);
@@ -1621,7 +1622,7 @@ export default function App() {
 
   const dismissAnnouncement = () => {
     setAnnouncementOpen(false);
-    localStorage.setItem('announcement_dismissed_v1', 'true');
+    localStorage.setItem('announcement_dismissed_text', announcement.text);
   };
 
   return (

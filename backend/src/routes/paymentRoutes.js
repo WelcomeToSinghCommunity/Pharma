@@ -13,9 +13,14 @@ router.post('/create-order', async (req, res) => {
       return res.status(400).json({ error: 'courseId and amount are required' });
     }
 
-    // Verify course exists
-    const course = await prisma.course.findUnique({
-      where: { id: courseId },
+    // Verify course exists by ID or Slug (for static fallback compatibility)
+    const course = await prisma.course.findFirst({
+      where: {
+        OR: [
+          { id: courseId },
+          { slug: courseId }
+        ]
+      },
     });
 
     if (!course) {
@@ -27,13 +32,13 @@ router.post('/create-order', async (req, res) => {
       return res.status(400).json({ error: 'Amount does not match course price' });
     }
 
-    // Create Razorpay order
+    // Create Razorpay order using database UUID
     const options = {
       amount: amount * 100, // Razorpay expects amount in paise
       currency: 'INR',
-      receipt: `course_${courseId}_${Date.now()}`,
+      receipt: `course_${course.id}_${Date.now()}`,
       notes: {
-        courseId: courseId,
+        courseId: course.id,
       },
     };
 
@@ -76,12 +81,27 @@ router.post('/verify', async (req, res) => {
       return res.status(400).json({ error: 'Invalid payment signature' });
     }
 
+    // Resolve courseId to database UUID (if it's a slug)
+    const courseObj = await prisma.course.findFirst({
+      where: {
+        OR: [
+          { id: courseId },
+          { slug: courseId }
+        ]
+      }
+    });
+
+    if (!courseObj) {
+      return res.status(404).json({ error: 'Course not found' });
+    }
+    const dbCourseId = courseObj.id;
+
     // Check if enrollment already exists
     const existingEnrollment = await prisma.enrollment.findUnique({
       where: {
         userId_courseId: {
           userId,
-          courseId,
+          courseId: dbCourseId,
         },
       },
     });
@@ -90,11 +110,11 @@ router.post('/verify', async (req, res) => {
       return res.status(400).json({ error: 'Already enrolled in this course' });
     }
 
-    // Create enrollment
+    // Create enrollment using database UUID
     const enrollment = await prisma.enrollment.create({
       data: {
         userId,
-        courseId,
+        courseId: dbCourseId,
         status: 'ACTIVE',
         enrolledAt: new Date(),
       },
