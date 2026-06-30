@@ -597,10 +597,6 @@ function CourseDetailPage({ user, isAdmin }) {
       .finally(() => setLoading(false));
   }, [slug]);
 
-  if (loading) {
-    return <PremiumLoader message="Loading course curriculum & details..." type="detail" />;
-  }
-
   const [isEnrolled, setIsEnrolled] = useState(false);
   
   useEffect(() => {
@@ -621,6 +617,10 @@ function CourseDetailPage({ user, isAdmin }) {
       })
       .catch(err => console.error('Failed to load enrollments on detail page:', err));
   }, [user, course]);
+
+  if (loading) {
+    return <PremiumLoader message="Loading course curriculum & details..." type="detail" />;
+  }
 
   if (!course) return <NotFound />;
 
