@@ -4,6 +4,8 @@ import helmet from 'helmet';
 import dotenv from 'dotenv';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
+import fs from 'fs';
+import path from 'path';
 import courseRoutes from './src/routes/courseRoutes.js';
 import uploadRoutes from './src/routes/uploadRoutes.js';
 import commentRoutes from './src/routes/commentRoutes.js';
@@ -87,6 +89,41 @@ app.use('/api/upload', uploadRoutes);
 app.use('/api/comments', commentRoutes);
 app.use('/api/reactions', reactionRoutes);
 app.use('/api/payments', paymentRoutes);
+
+// Announcement configuration routes
+app.get('/api/announcement', (req, res) => {
+  try {
+    const filePath = path.join(process.cwd(), 'announcement.json');
+    if (fs.existsSync(filePath)) {
+      const data = fs.readFileSync(filePath, 'utf8');
+      return res.json(JSON.parse(data));
+    }
+  } catch (err) {
+    console.error('Error reading announcement.json:', err);
+  }
+  // Default fallback if file doesn't exist
+  res.json({
+    show: true,
+    badge: "Notice",
+    text: "🚀 GAMP 5 & CSA Validation Course is launching next week! Register early for 20% off.",
+    linkText: "Learn More",
+    linkUrl: "/courses",
+    theme: "gradient-teal"
+  });
+});
+
+app.post('/api/announcement', (req, res) => {
+  try {
+    const { show, badge, text, linkText, linkUrl, theme } = req.body;
+    const filePath = path.join(process.cwd(), 'announcement.json');
+    const config = { show, badge, text, linkText, linkUrl, theme };
+    fs.writeFileSync(filePath, JSON.stringify(config, null, 2), 'utf8');
+    res.json({ success: true, config });
+  } catch (err) {
+    console.error('Error writing announcement.json:', err);
+    res.status(500).json({ error: 'Failed to save announcement configuration' });
+  }
+});
 
 // Health check
 app.get('/health', (req, res) => {

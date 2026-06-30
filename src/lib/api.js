@@ -261,3 +261,18 @@ export async function getVideoReactionCounts(lessonId) {
 export async function getUserVideoReaction(lessonId, userId) {
   return fetchAPI(`/reactions/videos/${lessonId}/user/${userId}`);
 }
+
+// ============================================
+// ANNOUNCEMENTS
+// ============================================
+
+export async function getAnnouncement() {
+  return fetchAPI('/announcement');
+}
+
+export async function updateAnnouncement(config) {
+  return fetchAPI('/announcement', {
+    method: 'POST',
+    body: JSON.stringify(config),
+  });
+}

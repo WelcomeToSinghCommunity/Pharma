@@ -4,7 +4,7 @@ import {
   ArrowLeft, BarChart3, BookOpen, CheckCircle2, ChevronRight, ClipboardCheck,
   Download, Gift, LayoutDashboard, Lock, LogOut, Mail, MapPin, Menu, MessageSquare,
   Phone, Play, Plus, Radio, Search, ShieldCheck, UploadCloud, UserRound, Users, Video, X,
-  Sun, Moon,
+  Sun, Moon, Star, Linkedin, Megaphone,
 } from 'lucide-react';
 import {
   courses as staticCourses, getCourseBySlug as getCourseBySlugStatic, getLessonById, getLessonCount, getModuleCount, makeLessonId,
@@ -13,6 +13,7 @@ import { supabase, hasSupabaseConfig } from './lib/supabase.js';
 import {
   getCourses, getCourseBySlug, getCourseById, createCourse, updateCourse, deleteCourse,
   uploadThumbnail, uploadMaterial, uploadVideo,
+  getAnnouncement, updateAnnouncement,
 } from './lib/api.js';
 import VideoPlayer from './components/VideoPlayer.jsx';
 import CheckoutPage from './components/CheckoutPage.jsx';
@@ -30,6 +31,16 @@ import { applyReferralFromURL } from './hooks/useReferral.js';
 
 // Apply referral code from URL on load
 applyReferralFromURL();
+
+// ─── ANNOUNCEMENT BAR CONFIGURATION ──────────────────────────────────────────
+const ANNOUNCEMENT_CONFIG = {
+  show: true,
+  badge: "Notice",
+  text: "🚀 GAMP 5 & CSA Validation Course is launching next week! Register early for 20% off.",
+  linkText: "Learn More",
+  linkUrl: "/courses",
+  theme: "gradient-teal", // options: "gradient-teal", "gradient-indigo", "warning-amber", "danger-red"
+};
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 const adminEmails = ['harideepsingh13@gmail.com', 'kishansingh.nmims@gmail.com'];
@@ -52,7 +63,7 @@ function formatPrice(p) { return p === 0 ? 'Free' : `₹${p.toLocaleString('en-I
 function getFirstLesson(course) { return makeLessonId(course.modules[0].title, 0); }
 
 function RequireAuth({ user, loading, children }) {
-  if (loading) return <div className="section"><p className="text-slate-500">Loading…</p></div>;
+  if (loading) return <PremiumLoader message="Verifying authentication session..." type="auth" />;
   if (!user) return <Navigate to="/login" replace />;
   return children;
 }
@@ -313,6 +324,67 @@ function ForgotPasswordPage() {
 }
 
 // ─── Shared UI ────────────────────────────────────────────────────────────────
+const PHARMA_TIPS = [
+  "OOS (Out-of-Specification) investigations must be completed within 30 days of the initial result.",
+  "USFDA 21 CFR Part 11 sets the criteria for electronic records and signatures to be trustworthy.",
+  "Environmental monitoring in Grade A zones requires active air sampling, settle plates, and contact plates.",
+  "GAMP 5 principles classify software from Category 1 (Infrastructure) to Category 5 (Custom Software).",
+  "Cleanroom gowning procedures are the most critical control for preventing human contamination in sterile areas.",
+  "FDA inspectors prioritize Data Integrity issues, including ALCOA+ principles (Attributable, Legible, Contemporaneous, Original, Accurate).",
+  "Annex 1 guidelines mandate a formal Contamination Control Strategy (CCS) to identify and mitigate risks."
+];
+
+function PremiumLoader({ message = "Loading...", type = "default" }) {
+  const [tipIndex, setTipIndex] = useState(0);
+  const [progress, setProgress] = useState(0);
+
+  useEffect(() => {
+    const tipInterval = setInterval(() => {
+      setTipIndex((prev) => (prev + 1) % PHARMA_TIPS.length);
+    }, 4000);
+
+    const progressInterval = setInterval(() => {
+      setProgress((prev) => {
+        if (prev >= 100) return 100;
+        const increment = prev < 50 ? 6 : prev < 80 ? 3 : prev < 95 ? 1.5 : 0.4;
+        return Math.min(100, prev + increment);
+      });
+    }, 150);
+
+    return () => {
+      clearInterval(tipInterval);
+      clearInterval(progressInterval);
+    };
+  }, []);
+
+  return (
+    <div className="premium-loader-overlay">
+      <div className="premium-loader-card">
+        <div className="loader-icon-container">
+          <div className="pulse-ring"></div>
+          <div className="pulse-ring-slow"></div>
+          <ShieldCheck size={36} className="loader-icon-svg" />
+        </div>
+        <h3 className="loader-title">{message}</h3>
+        <div className="loader-progress-container">
+          <div className="loader-progress-track">
+            <div className="loader-progress-fill" style={{ width: `${progress}%` }}>
+              <div className="loader-progress-glow"></div>
+            </div>
+          </div>
+          <span className="loader-progress-percentage">{Math.round(progress)}%</span>
+        </div>
+        <div className="loader-tip-box">
+          <span className="loader-tip-label">PHARMA INSIGHT</span>
+          <p className="loader-tip-text">
+            "{PHARMA_TIPS[tipIndex]}"
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SectionTitle({ eyebrow, title, copy }) {
   return (
     <div className="max-w-3xl">
@@ -352,19 +424,20 @@ function LandingPage() {
   return (
     <>
       <section className="hero-section">
-        <div className="mx-auto grid max-w-7xl gap-10 px-4 py-16 sm:px-6 lg:grid-cols-[1.05fr_0.95fr] lg:px-8 lg:py-20">
+        <div className="hero-grid-overlay"></div>
+        <div className="mx-auto grid max-w-7xl gap-10 px-4 py-16 sm:px-6 lg:grid-cols-[1.05fr_0.95fr] lg:px-8 lg:py-20 relative z-10">
           <div className="flex flex-col justify-center">
             <span className="eyebrow">Pharmaceutical QA/QC Training Platform</span>
             <h1 className="mt-5 font-display text-4xl font-extrabold leading-tight text-white sm:text-5xl lg:text-6xl">
-              GMP and Regulatory training by Harish C. Singh.
+              GMP &amp; Regulatory compliance training designed by <span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-300 to-emerald-200 font-extrabold">Harish C. Singh</span>.
             </h1>
             <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-200">
-              NextGen Pharma Solutions — a dynamic ecosystem to empower pharma talent, drive career growth,
-              and help professionals flourish in the global pharmaceutical landscape.
+              NextGen Pharma Solutions — a dynamic learning ecosystem to empower pharma talent, drive career growth,
+              and help QA/QC professionals flourish in the global compliance landscape.
             </p>
-            <div className="mt-8 flex flex-wrap gap-3">
-              <Link className="btn btn-light" to="/courses">Browse Courses</Link>
-              <Link className="btn btn-teal" to="/signup">Get Started Free</Link>
+            <div className="mt-8 flex flex-wrap gap-4">
+              <Link className="btn btn-light hover:shadow-lg transition-all" to="/courses">Browse Courses</Link>
+              <Link className="btn btn-teal hover:shadow-lg transition-all" to="/signup">Get Started Free</Link>
             </div>
           </div>
           <div className="lab-panel" aria-label="Harish C. Singh profile and training focus">
@@ -378,8 +451,17 @@ function LandingPage() {
         </div>
       </section>
       <section className="stats-band">
-        {[['4','Courses published'],['250+','Target learners'],['20+','Years industry experience'],['100%','Structured curriculum']].map(([v,l]) => (
-          <div key={l}><strong>{v}</strong><span>{l}</span></div>
+        {[
+          [BookOpen, '4+', 'Specialized Courses'],
+          [Users, '250+', 'Active Learners'],
+          [ShieldCheck, '20+', 'Years Industry Experience'],
+          [ClipboardCheck, '100%', 'Audit-ready Curriculum']
+        ].map(([Icon, v, l]) => (
+          <div key={l} className="stat-card">
+            <Icon className="stat-icon" size={24} />
+            <strong>{v}</strong>
+            <span>{l}</span>
+          </div>
         ))}
       </section>
       <section className="section">
@@ -389,33 +471,68 @@ function LandingPage() {
       <section className="section bg-white">
         <SectionTitle eyebrow="Why This Platform" title="Purpose-built for pharmaceutical learners" />
         <div className="mt-10 grid gap-5 md:grid-cols-4">
-          {[[ShieldCheck,'Regulatory-aligned','USFDA, EU GMP, MHRA, USP, Annex 15, and GAMP 5 references.'],[ClipboardCheck,'Actionable SOP thinking','Content maps directly to investigation, validation, and audit tasks.'],[BarChart3,'Progress-led UX','Dashboards, completion states, and continue paths keep learners moving.'],[Users,'Community-first','Connecting experts in QA/QC, Regulatory Affairs, Manufacturing, and more.']].map(([Icon,title,copy]) => (
-            <div className="value-card" key={title}><Icon className="text-teal" size={26} aria-hidden="true" /><h3>{title}</h3><p>{copy}</p></div>
+          {[
+            [ShieldCheck, 'Regulatory-aligned', 'USFDA, EU GMP, MHRA, USP, Annex 15, and GAMP 5 compliance references.'],
+            [ClipboardCheck, 'Actionable SOP Thinking', 'Content maps directly to investigation protocols, validation tasks, and audits.'],
+            [BarChart3, 'Progress-led UX', 'Personalized dashboards, completion states, and resume-learning paths.'],
+            [Users, 'Community-first', 'Connecting active experts in QA/QC, Regulatory Affairs, and Manufacturing.']
+          ].map(([Icon, title, copy]) => (
+            <div className="value-card group" key={title}>
+              <div className="value-card-icon-wrapper">
+                <Icon className="text-teal transition-transform group-hover:scale-110" size={26} aria-hidden="true" />
+              </div>
+              <h3>{title}</h3>
+              <p>{copy}</p>
+            </div>
           ))}
         </div>
       </section>
       <section className="section">
         <div className="grid gap-10 lg:grid-cols-[0.8fr_1.2fr] lg:items-center">
           <div className="founder-photo-wrap">
-            <img src="/harish-profile.png" alt="Harish C. Singh — Founder, NextGen Pharma Solutions" className="founder-photo" />
+            <div className="founder-photo-glow-border">
+              <img src="/harish-profile.png" alt="Harish C. Singh — Founder, NextGen Pharma Solutions" className="founder-photo" />
+            </div>
           </div>
-          <div>
+          <div className="founder-bio-card">
             <span className="eyebrow-dark">About the Founder</span>
             <h2 className="mt-3 font-display text-3xl font-bold text-navy">Harish C. Singh</h2>
-            <p className="mt-1 text-base font-semibold text-teal">Deputy Manager QCC · M.Tech BITS</p>
+            <p className="mt-1 text-base font-semibold text-teal flex items-center gap-2">
+              Deputy Manager QCC &bull; M.Tech BITS Pilani
+            </p>
             <p className="mt-4 leading-8 text-slate-600">NextGen Pharma Solutions was founded with a single mission — to help pharmaceutical professionals flourish, upskill, showcase expertise, expand networks, and achieve their dream roles in the global pharmaceutical landscape.</p>
             <p className="mt-3 leading-8 text-slate-600">Harish brings Quality Control and Compliance leadership experience into focused, practical lessons built from real industry workflows across QA/QC, Regulatory Affairs, Manufacturing, and Analytical Method Validation.</p>
-            <div className="mt-6 flex flex-wrap gap-3">
-              {['M.Tech BITS','QA/QC Mentoring','Regulatory Affairs','GMP Training'].map((p) => <span key={p} className="pill">{p}</span>)}
+            <div className="mt-6 flex flex-wrap gap-2.5">
+              {['M.Tech BITS', 'QA/QC Mentoring', 'Regulatory Compliance', 'GMP Inspector Prep'].map((p) => <span key={p} className="pill">{p}</span>)}
             </div>
           </div>
         </div>
       </section>
       <section className="section bg-white">
         <SectionTitle eyebrow="Testimonials" title="Designed for serious learners" />
-        <div className="mt-8 grid gap-5 md:grid-cols-3">
-          {['Clear module structure made OOS concepts easier to apply in daily lab work.','The validation examples feel grounded in real inspection expectations.','A clean way for our team to revisit GMP topics before audits.'].map((quote, i) => (
-            <blockquote className="quote-card" key={quote}><p>"{quote}"</p><footer>Learner {i + 1}</footer></blockquote>
+        <div className="mt-8 grid gap-6 md:grid-cols-3">
+          {[
+            'Clear module structure made OOS concepts easier to apply in daily lab work.',
+            'The validation examples feel grounded in real inspection expectations.',
+            'A clean way for our team to revisit GMP topics before audits.'
+          ].map((quote, i) => (
+            <blockquote className="quote-card" key={quote}>
+              <div className="flex gap-1 mb-4 text-amber-400">
+                {[...Array(5)].map((_, idx) => <Star key={idx} size={16} fill="currentColor" />)}
+              </div>
+              <p className="italic text-slate-600">"{quote}"</p>
+              <footer>
+                <div className="flex items-center gap-2 mt-4">
+                  <div className="h-8 w-8 rounded-full bg-teal/10 text-teal font-bold flex items-center justify-center text-xs">
+                    L{i + 1}
+                  </div>
+                  <div>
+                    <strong className="text-navy block text-sm font-bold">QA/QC Professional</strong>
+                    <span className="text-slate-400 text-xs">Verified Learner</span>
+                  </div>
+                </div>
+              </footer>
+            </blockquote>
           ))}
         </div>
       </section>
@@ -481,7 +598,7 @@ function CourseDetailPage({ user, isAdmin }) {
   }, [slug]);
 
   if (loading) {
-    return <div className="min-h-screen bg-mist flex items-center justify-center">Loading...</div>;
+    return <PremiumLoader message="Loading course curriculum & details..." type="detail" />;
   }
 
   if (!course) return <NotFound />;
@@ -551,18 +668,24 @@ function DashboardLayout({ user, children }) {
   return (
     <section className="dashboard-shell">
       <aside className="dashboard-nav">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-teal">Learner</p>
-          <h2 className="mt-2 font-display text-xl font-bold text-navy">{user?.user_metadata?.full_name || user?.email || 'Learner'}</h2>
+        <div className="dashboard-profile-card">
+          <div className="avatar-circle">
+            <UserRound size={20} className="text-teal" />
+          </div>
+          <div className="profile-info">
+            <span className="profile-role">Learner Space</span>
+            <h2 className="profile-name">{user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Learner'}</h2>
+            <p className="profile-email">{user?.email}</p>
+          </div>
         </div>
-        <nav className="mt-8 space-y-2">
-          <NavLink to="/dashboard" end><LayoutDashboard size={18} /> Overview</NavLink>
-          <NavLink to="/dashboard/my-courses"><BookOpen size={18} /> My Courses</NavLink>
-          <NavLink to="/dashboard/profile"><UserRound size={18} /> Profile</NavLink>
-          <NavLink to="/refer"><Gift size={18} /> Refer &amp; Earn</NavLink>
+        <nav className="dashboard-menu">
+          <NavLink to="/dashboard" end className="menu-item"><LayoutDashboard size={18} /> Overview</NavLink>
+          <NavLink to="/dashboard/my-courses" className="menu-item"><BookOpen size={18} /> My Courses</NavLink>
+          <NavLink to="/dashboard/profile" className="menu-item"><UserRound size={18} /> Profile</NavLink>
+          <NavLink to="/refer" className="menu-item"><Gift size={18} /> Refer &amp; Earn</NavLink>
         </nav>
       </aside>
-      <main className="min-w-0 flex-1">{children}</main>
+      <main className="dashboard-main-content">{children}</main>
     </section>
   );
 }
@@ -638,23 +761,44 @@ function CoursePlayerPage({ user }) {
   return (
     <section className="player-shell">
       <aside className="lesson-sidebar">
-        <Link className="inline-flex items-center gap-2 text-sm font-semibold text-teal" to="/dashboard"><ArrowLeft size={16} /> Dashboard</Link>
-        <h1 className="mt-5 font-display text-2xl font-bold text-navy">{course.title}</h1>
-        <div className="mt-4">
-          <div className="mb-1 flex justify-between text-xs font-semibold text-slate-500"><span>Progress</span><span>{Math.round((completed.length / allLessons.length) * 100)}%</span></div>
-          <div className="progress-track"><span style={{ width: `${(completed.length / allLessons.length) * 100}%` }} /></div>
+        <Link className="sidebar-back-link" to="/dashboard">
+          <ArrowLeft size={16} /> <span>Back to Dashboard</span>
+        </Link>
+        <div className="sidebar-course-header">
+          <span className="course-header-tag">Course Workspace</span>
+          <h1 className="course-header-title">{course.title}</h1>
         </div>
-        <div className="mt-6 space-y-5">
-          {course.modules.map((mod) => (
-            <div key={mod.title}>
-              <h2 className="text-sm font-bold uppercase tracking-[0.12em] text-slate-500">{mod.title}</h2>
-              <div className="mt-3 space-y-2">
-                {mod.lessons.map((lesson, li) => { const id = makeLessonId(mod.title, li); const done = isCompleted(id); return (
-                  <Link className={currentLesson.id === id ? 'outline-lesson active' : 'outline-lesson'} key={lesson.title} to={`/dashboard/learn/${course.id}/${id}`}>
-                    <span>{lesson.title}</span>
-                    {done ? <CheckCircle2 size={16} className="text-teal shrink-0" /> : <Play size={16} className="shrink-0" />}
-                  </Link>
-                ); })}
+        <div className="sidebar-progress-card">
+          <div className="progress-labels">
+            <span>Course Progress</span>
+            <strong>{Math.round((completed.length / allLessons.length) * 100)}%</strong>
+          </div>
+          <div className="progress-track">
+            <span style={{ width: `${(completed.length / allLessons.length) * 100}%` }} />
+          </div>
+          <p className="progress-stats">{completed.length} of {allLessons.length} lessons completed</p>
+        </div>
+        <div className="sidebar-modules-list">
+          {course.modules.map((mod, modIdx) => (
+            <div key={mod.title} className="sidebar-module-section">
+              <h2 className="sidebar-module-title">
+                <span className="module-num">M{modIdx + 1}</span> {mod.title}
+              </h2>
+              <div className="sidebar-lessons-list">
+                {mod.lessons.map((lesson, li) => { 
+                  const id = makeLessonId(mod.title, li); 
+                  const done = isCompleted(id); 
+                  return (
+                    <Link 
+                      className={currentLesson.id === id ? 'outline-lesson active' : 'outline-lesson'} 
+                      key={lesson.title} 
+                      to={`/dashboard/learn/${course.id}/${id}`}
+                    >
+                      <span className="lesson-title-text">{lesson.title}</span>
+                      {done ? <CheckCircle2 size={15} className="text-teal shrink-0" /> : <Play size={14} className="lesson-play-icon shrink-0" />}
+                    </Link>
+                  ); 
+                })}
               </div>
             </div>
           ))}
@@ -711,13 +855,7 @@ function PlansPage() {
   }, []);
 
   if (loading) {
-    return (
-      <section className="section">
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="text-slate-500">Loading courses...</div>
-        </div>
-      </section>
-    );
+    return <PremiumLoader message="Retrieving course pricing & details..." type="plans" />;
   }
 
   return (
@@ -789,6 +927,7 @@ function AdminLayout({ isAdmin, children }) {
           <NavLink to="/admin/users"><Users size={18} /> Users</NavLink>
           <NavLink to="/admin/messages"><MessageSquare size={18} /> Messages</NavLink>
           <NavLink to="/admin/live"><Radio size={18} /> Live Sessions</NavLink>
+          <NavLink to="/admin/announcement"><Megaphone size={18} /> Announcement</NavLink>
         </nav>
       </aside>
       <main className="min-w-0 flex-1">{children}</main>
@@ -875,9 +1014,7 @@ function AdminCoursesPage({ isAdmin }) {
   if (loading) {
     return (
       <AdminLayout isAdmin={isAdmin}>
-        <div className="section">
-          <p className="text-slate-400">Loading courses…</p>
-        </div>
+        <PremiumLoader message="Accessing course manager database..." type="admin-courses" />
       </AdminLayout>
     );
   }
@@ -1109,9 +1246,7 @@ function AdminCourseFormPage({ isAdmin }) {
   if (loading) {
     return (
       <AdminLayout isAdmin={isAdmin}>
-        <div className="section">
-          <p className="text-slate-400">Loading course data…</p>
-        </div>
+        <PremiumLoader message="Fetching course editor data..." type="admin-form" />
       </AdminLayout>
     );
   }
@@ -1273,6 +1408,119 @@ function AdminLivePage({ isAdmin }) {
   );
 }
 
+function AdminAnnouncementPage({ isAdmin }) {
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [show, setShow] = useState(true);
+  const [badge, setBadge] = useState('Notice');
+  const [text, setText] = useState('');
+  const [linkText, setLinkText] = useState('Learn More');
+  const [linkUrl, setLinkUrl] = useState('/courses');
+  const [theme, setTheme] = useState('gradient-teal');
+  const [toast, setToast] = useState('');
+
+  useEffect(() => {
+    setLoading(true);
+    getAnnouncement()
+      .then(data => {
+        setShow(data.show);
+        setBadge(data.badge);
+        setText(data.text);
+        setLinkText(data.linkText || 'Learn More');
+        setLinkUrl(data.linkUrl || '/courses');
+        setTheme(data.theme || 'gradient-teal');
+      })
+      .catch(err => {
+        console.error('Failed to load announcement config:', err);
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  function showToast(msg) { setToast(msg); setTimeout(() => setToast(''), 3000); }
+
+  async function handleSave(e) {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      await updateAnnouncement({ show, badge, text, linkText, linkUrl, theme });
+      showToast('✅ Announcement saved successfully!');
+    } catch (err) {
+      console.error(err);
+      showToast('❌ Failed to save announcement');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (loading) {
+    return (
+      <AdminLayout isAdmin={isAdmin}>
+        <PremiumLoader message="Loading announcement config..." type="admin-announcement" />
+      </AdminLayout>
+    );
+  }
+
+  return (
+    <AdminLayout isAdmin={isAdmin}>
+      <SectionTitle eyebrow="Alerts & Broadcast" title="Manage Announcement Bar" copy="Update the top banner message instantly across the entire platform." />
+      {toast && <div className="mt-4 rounded bg-teal/10 px-4 py-3 font-semibold text-teal">{toast}</div>}
+      
+      <form onSubmit={handleSave} className="mt-8 space-y-6 max-w-3xl">
+        <div className="panel">
+          <h3 className="panel-title">Announcement Settings</h3>
+          
+          <label className="flex flex-row items-center gap-3 font-normal cursor-pointer select-none">
+            <input 
+              type="checkbox" 
+              checked={show} 
+              onChange={e => setShow(e.target.checked)} 
+              className="h-4 w-4 rounded border-slate-300 text-teal focus:ring-teal animate-pulse"
+            />
+            <span className="font-bold text-slate-700 dark:text-slate-300">Show announcement bar to visitors</span>
+          </label>
+          
+          {show && (
+            <div className="mt-6 space-y-4">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label>Badge text
+                  <input value={badge} onChange={e => setBadge(e.target.value)} placeholder="e.g. Notice, Alert, Holiday" required />
+                </label>
+                <label>Theme Preset
+                  <select value={theme} onChange={e => setTheme(e.target.value)}>
+                    <option value="gradient-teal">Emerald Teal (Gradient)</option>
+                    <option value="gradient-indigo">Indigo Blue (Gradient)</option>
+                    <option value="warning-amber">Warning Gold (Amber)</option>
+                    <option value="danger-red">Alert Red (Danger)</option>
+                  </select>
+                </label>
+              </div>
+              
+              <label>Announcement Text
+                <textarea value={text} onChange={e => setText(e.target.value)} rows="3" placeholder="Message content..." required />
+              </label>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label>Link Text
+                  <input value={linkText} onChange={e => setLinkText(e.target.value)} placeholder="e.g. Learn More, View Details" />
+                </label>
+                <label>Link URL (relative or absolute)
+                  <input value={linkUrl} onChange={e => setLinkUrl(e.target.value)} placeholder="e.g. /courses, /live, https://..." />
+                </label>
+              </div>
+            </div>
+          )}
+        </div>
+        
+        <div className="flex gap-3">
+          <button type="submit" className="btn btn-primary" disabled={saving}>
+            <CheckCircle2 size={16} /> {saving ? 'Saving…' : 'Publish Announcement'}
+          </button>
+        </div>
+      </form>
+    </AdminLayout>
+  );
+}
+
 // ─── Footer & NotFound ────────────────────────────────────────────────────────
 function NotFound() {
   return (
@@ -1285,26 +1533,60 @@ function NotFound() {
 
 function Footer() {
   return (
-    <footer className="border-t border-slate-200 bg-white">
-      <div className="mx-auto flex max-w-7xl flex-col justify-between gap-6 px-4 py-8 text-sm text-slate-600 sm:px-6 md:flex-row lg:px-8">
-        <div>
-          <strong className="font-display text-navy">NextGen Pharma</strong>
-          <p className="mt-2">Makarba, Ahmedabad 380051, Gujarat</p>
-          <p className="mt-1">Contact: harideepsingh13@gmail.com</p>
+    <footer className="footer-container">
+      <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-1 gap-8 md:grid-cols-4">
+          {/* Brand Info Column */}
+          <div className="md:col-span-1">
+            <strong className="footer-brand">NextGen Pharma</strong>
+            <p className="footer-desc">
+              Empowering pharmaceutical talent with practical compliance, QA/QC, and regulatory validation training. Built by industry experts.
+            </p>
+            <div className="footer-contact">
+              <p className="flex items-center gap-2"><MapPin size={16} className="text-teal" /> Makarba, Ahmedabad 380051, Gujarat</p>
+              <p className="flex items-center gap-2"><Mail size={16} className="text-teal" /> harideepsingh13@gmail.com</p>
+            </div>
+          </div>
+          
+          {/* Column 2: Courses & Training */}
+          <div>
+            <h4 className="footer-title">Learning</h4>
+            <ul className="footer-links">
+              <li><Link to="/courses">Courses Catalog</Link></li>
+              <li><Link to="/books">Reference Books</Link></li>
+              <li><Link to="/live">Live Classes</Link></li>
+              <li><Link to="/refer">Refer &amp; Earn</Link></li>
+            </ul>
+          </div>
+          
+          {/* Column 3: About & Support */}
+          <div>
+            <h4 className="footer-title">Company</h4>
+            <ul className="footer-links">
+              <li><Link to="/about">About Us</Link></li>
+              <li><Link to="/contact">Contact Support</Link></li>
+              <li>
+                <a href="https://www.linkedin.com/in/harish-singh-29b39b46/" target="_blank" rel="noreferrer" className="flex items-center gap-1.5">
+                  <Linkedin size={15} /> LinkedIn Profile
+                </a>
+              </li>
+            </ul>
+          </div>
+          
+          {/* Column 4: Legal Policy */}
+          <div>
+            <h4 className="footer-title">Legal</h4>
+            <ul className="footer-links">
+              <li><Link to="/privacy-policy">Privacy Policy</Link></li>
+              <li><Link to="/terms-conditions">Terms &amp; Conditions</Link></li>
+              <li><Link to="/refund-policy">Refund Policy</Link></li>
+            </ul>
+          </div>
         </div>
-        <div className="flex flex-wrap gap-4">
-          <Link to="/courses">Courses</Link>
-          <Link to="/books">Books</Link>
-          <Link to="/live">Live Classes</Link>
-          <Link to="/contact">Contact</Link>
-          <Link to="/refer">Refer &amp; Earn</Link>
-          <Link to="/about">About Us</Link>
-        </div>
-        <div className="flex flex-wrap gap-4">
-          <Link to="/privacy-policy">Privacy Policy</Link>
-          <Link to="/terms-conditions">Terms & Conditions</Link>
-          <Link to="/refund-policy">Refund Policy</Link>
-          <a href="https://www.linkedin.com/in/harish-singh-29b39b46/" target="_blank" rel="noreferrer">LinkedIn</a>
+        
+        {/* Copyright Bar */}
+        <div className="footer-bottom">
+          <p>&copy; {new Date().getFullYear()} NextGen Pharma Solutions. All rights reserved.</p>
         </div>
       </div>
     </footer>
@@ -1314,44 +1596,91 @@ function Footer() {
 // ─── App root ─────────────────────────────────────────────────────────────────
 export default function App() {
   const { user, isAdmin, loading } = useAuth();
+
+  const [announcement, setAnnouncement] = useState({
+    show: false,
+    badge: "Notice",
+    text: "",
+    linkText: "Learn More",
+    linkUrl: "/courses",
+    theme: "gradient-teal",
+  });
+  const [announcementOpen, setAnnouncementOpen] = useState(false);
+
+  useEffect(() => {
+    getAnnouncement()
+      .then(data => {
+        setAnnouncement(data);
+        const dismissed = localStorage.getItem('announcement_dismissed_v1') === 'true';
+        setAnnouncementOpen(data.show && !dismissed);
+      })
+      .catch(err => {
+        console.error('Failed to load announcement config:', err);
+      });
+  }, []);
+
+  const dismissAnnouncement = () => {
+    setAnnouncementOpen(false);
+    localStorage.setItem('announcement_dismissed_v1', 'true');
+  };
+
   return (
-    <div className="min-h-screen bg-mist text-ink">
+    <div className="min-h-screen bg-mist text-ink flex flex-col">
+      {announcementOpen && (
+        <div className={`announcement-bar-outer ${announcement.theme}`}>
+          <div className="announcement-bar-inner">
+            <span className="announcement-badge">{announcement.badge}</span>
+            <span className="announcement-text">{announcement.text}</span>
+            {announcement.linkUrl && (
+              <Link to={announcement.linkUrl} className="announcement-link">
+                {announcement.linkText} &rarr;
+              </Link>
+            )}
+          </div>
+          <button onClick={dismissAnnouncement} className="announcement-close" aria-label="Dismiss announcement">
+            <X size={14} />
+          </button>
+        </div>
+      )}
       <Header user={user} isAdmin={isAdmin} />
-      <Routes>
-        <Route path="/" element={<LandingPage />} />
-        <Route path="/courses" element={<CatalogPage />} />
-        <Route path="/courses/:slug" element={<CourseDetailPage user={user} isAdmin={isAdmin} />} />
-        <Route path="/courses/:slug/insights" element={<CourseInsights />} />
-        <Route path="/checkout/:slug" element={<CheckoutPage />} />
-        <Route path="/books" element={<Books />} />
-        <Route path="/live" element={<LiveClasses />} />
-        <Route path="/contact" element={<Contact />} />
-        <Route path="/refer" element={<ReferFriends user={user} />} />
-        <Route path="/ref/:code" element={<ReferralRedirect />} />
-        <Route path="/privacy-policy" element={<PrivacyPolicy />} />
-        <Route path="/terms-conditions" element={<TermsConditions />} />
-        <Route path="/refund-policy" element={<RefundPolicy />} />
-        <Route path="/about" element={<AboutUs />} />
+      <main className="flex-1">
+        <Routes>
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/courses" element={<CatalogPage />} />
+          <Route path="/courses/:slug" element={<CourseDetailPage user={user} isAdmin={isAdmin} />} />
+          <Route path="/courses/:slug/insights" element={<CourseInsights />} />
+          <Route path="/checkout/:slug" element={<CheckoutPage />} />
+          <Route path="/books" element={<Books />} />
+          <Route path="/live" element={<LiveClasses />} />
+          <Route path="/contact" element={<Contact />} />
+          <Route path="/refer" element={<ReferFriends user={user} />} />
+          <Route path="/ref/:code" element={<ReferralRedirect />} />
+          <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+          <Route path="/terms-conditions" element={<TermsConditions />} />
+          <Route path="/refund-policy" element={<RefundPolicy />} />
+          <Route path="/about" element={<AboutUs />} />
 
-        <Route path="/login" element={user ? <Navigate to="/dashboard" replace /> : <LoginPage />} />
-        <Route path="/signup" element={user ? <Navigate to="/dashboard" replace /> : <SignupPage />} />
-        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/login" element={user ? <Navigate to="/dashboard" replace /> : <LoginPage />} />
+          <Route path="/signup" element={user ? <Navigate to="/dashboard" replace /> : <SignupPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
 
-        <Route path="/dashboard" element={<RequireAuth user={user} loading={loading}><DashboardPage user={user} /></RequireAuth>} />
-        <Route path="/dashboard/my-courses" element={<RequireAuth user={user} loading={loading}><DashboardPage user={user} /></RequireAuth>} />
-        <Route path="/dashboard/profile" element={<RequireAuth user={user} loading={loading}><ProfilePage user={user} /></RequireAuth>} />
-        <Route path="/dashboard/learn/:courseId/:lessonId" element={<RequireAuth user={user} loading={loading}><CoursePlayerPage user={user} /></RequireAuth>} />
+          <Route path="/dashboard" element={<RequireAuth user={user} loading={loading}><DashboardPage user={user} /></RequireAuth>} />
+          <Route path="/dashboard/my-courses" element={<RequireAuth user={user} loading={loading}><DashboardPage user={user} /></RequireAuth>} />
+          <Route path="/dashboard/profile" element={<RequireAuth user={user} loading={loading}><ProfilePage user={user} /></RequireAuth>} />
+          <Route path="/dashboard/learn/:courseId/:lessonId" element={<RequireAuth user={user} loading={loading}><CoursePlayerPage user={user} /></RequireAuth>} />
 
-        <Route path="/admin" element={<AdminPage isAdmin={isAdmin} />} />
-        <Route path="/admin/courses" element={<AdminCoursesPage isAdmin={isAdmin} />} />
-        <Route path="/admin/courses/new" element={<AdminCourseFormPage isAdmin={isAdmin} />} />
-        <Route path="/admin/courses/:id/edit" element={<AdminCourseFormPage isAdmin={isAdmin} />} />
-        <Route path="/admin/users" element={<AdminUsersPage isAdmin={isAdmin} />} />
-        <Route path="/admin/messages" element={<AdminMessagesPage isAdmin={isAdmin} />} />
-        <Route path="/admin/live" element={<AdminLivePage isAdmin={isAdmin} />} />
+          <Route path="/admin" element={<AdminPage isAdmin={isAdmin} />} />
+          <Route path="/admin/courses" element={<AdminCoursesPage isAdmin={isAdmin} />} />
+          <Route path="/admin/courses/new" element={<AdminCourseFormPage isAdmin={isAdmin} />} />
+          <Route path="/admin/courses/:id/edit" element={<AdminCourseFormPage isAdmin={isAdmin} />} />
+          <Route path="/admin/users" element={<AdminUsersPage isAdmin={isAdmin} />} />
+          <Route path="/admin/messages" element={<AdminMessagesPage isAdmin={isAdmin} />} />
+          <Route path="/admin/live" element={<AdminLivePage isAdmin={isAdmin} />} />
+          <Route path="/admin/announcement" element={<AdminAnnouncementPage isAdmin={isAdmin} />} />
 
-        <Route path="*" element={<NotFound />} />
-      </Routes>
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </main>
       <Footer />
     </div>
   );
