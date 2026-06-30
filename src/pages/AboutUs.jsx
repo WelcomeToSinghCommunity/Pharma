@@ -8,7 +8,7 @@ export default function AboutUs() {
         <div className="text-center mb-16">
           <h1 className="text-4xl md:text-5xl font-bold text-navy mb-4">About NextGen Pharma</h1>
           <p className="text-xl text-slate-600 max-w-3xl mx-auto">
-            Empowering pharmaceutical professionals with industry-leading training and certification programs since 2020
+            Empowering pharmaceutical professionals with industry-leading training and practical learning programs since 2020
           </p>
         </div>
 
@@ -74,8 +74,8 @@ export default function AboutUs() {
             <div className="flex items-start gap-3">
               <CheckCircle size={20} className="text-teal flex-shrink-0 mt-1" />
               <div>
-                <h3 className="font-semibold text-navy">Certification</h3>
-                <p className="text-slate-600 text-sm">Recognized certificates upon course completion</p>
+                <h3 className="font-semibold text-navy">Hands-On Cases</h3>
+                <p className="text-slate-600 text-sm">Interactive learning with real industry templates</p>
               </div>
             </div>
             <div className="flex items-start gap-3">

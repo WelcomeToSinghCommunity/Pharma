@@ -205,8 +205,8 @@ export default function CourseInsights() {
                 <div className="flex items-start gap-3">
                   <CheckCircle2 size={20} className="text-teal flex-shrink-0 mt-0.5" />
                   <div>
-                    <h3 className="font-semibold text-navy">Certificate</h3>
-                    <p className="text-sm text-slate-600">Certificate of completion</p>
+                    <h3 className="font-semibold text-navy">Q&amp;A Support</h3>
+                    <p className="text-sm text-slate-600">Dedicated mentor Q&amp;A support</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">

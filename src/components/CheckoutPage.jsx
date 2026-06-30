@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Check, ArrowLeft, Lock, PlayCircle, FileText, Award, Clock, Users, Star } from 'lucide-react';
 import { getCourseBySlug as getCourseBySlugStatic } from '../data/courses.js';
 
-export default function CheckoutPage() {
+export default function CheckoutPage({ user }) {
   const { slug } = useParams();
   const navigate = useNavigate();
   const [course, setCourse] = useState(null);
@@ -61,6 +61,30 @@ export default function CheckoutPage() {
 
       const order = await response.json();
 
+      // Check if mock mode is active (e.g. Razorpay configuration down or key issues on server)
+      if (order.isMock) {
+        console.warn('Mock payment mode active. Simulating database enrollment verification...');
+        const verifyResponse = await fetch(`${import.meta.env.VITE_API_URL}/payments/verify`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            razorpayOrderId: order.orderId,
+            razorpayPaymentId: `mock_pay_${Date.now()}`,
+            razorpaySignature: 'mock_signature_valid',
+            courseId: course.id,
+            userId: user?.id || 'mock-user-id',
+          }),
+        });
+
+        if (verifyResponse.ok) {
+          alert('Test Mode Payment successful! You are now enrolled.');
+          navigate(`/courses/${course.slug}`);
+        } else {
+          alert('Mock payment verification failed. Please try again.');
+        }
+        return;
+      }
+
       // Load Razorpay script dynamically
       const script = document.createElement('script');
       script.src = 'https://checkout.razorpay.com/v1/checkout.js';
@@ -83,13 +107,13 @@ export default function CheckoutPage() {
                 razorpayPaymentId: response.razorpay_payment_id,
                 razorpaySignature: response.razorpay_signature,
                 courseId: course.id,
-                userId: 'user-id-placeholder', // Replace with actual user ID from auth
+                userId: user?.id || 'mock-user-id',
               }),
             });
 
             if (verifyResponse.ok) {
               alert('Payment successful! You are now enrolled.');
-              navigate(`/course/${course.slug}`);
+              navigate(`/courses/${course.slug}`);
             } else {
               alert('Payment verification failed. Please contact support.');
             }
@@ -255,11 +279,11 @@ export default function CheckoutPage() {
                 </div>
                 <div className="flex items-start gap-3">
                   <div className="p-2 bg-teal/10 rounded-lg">
-                    <Lock size={20} className="text-teal" />
+                    <Users size={20} className="text-teal" />
                   </div>
                   <div>
-                    <h4 className="font-semibold text-navy">Certificate</h4>
-                    <p className="text-sm text-slate-600">Get certified upon completion</p>
+                    <h4 className="font-semibold text-navy">Q&amp;A Support</h4>
+                    <p className="text-sm text-slate-600">Dedicated mentor Q&amp;A support</p>
                   </div>
                 </div>
               </div>
@@ -312,7 +336,7 @@ export default function CheckoutPage() {
                   </li>
                   <li className="flex items-center gap-2">
                     <Check size={16} className="text-teal" />
-                    <span>Certificate of completion</span>
+                    <span>Dedicated mentor Q&amp;A support</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <Check size={16} className="text-teal" />

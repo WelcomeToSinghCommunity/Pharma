@@ -601,8 +601,29 @@ function CourseDetailPage({ user, isAdmin }) {
     return <PremiumLoader message="Loading course curriculum & details..." type="detail" />;
   }
 
+  const [isEnrolled, setIsEnrolled] = useState(false);
+  
+  useEffect(() => {
+    if (!user || !course) {
+      setIsEnrolled(false);
+      return;
+    }
+    if (course.priceInr === 0) {
+      setIsEnrolled(true);
+      return;
+    }
+    fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/payments/enrollments/${user.id}`)
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          setIsEnrolled(data.some(e => e.courseId === course.id || e.courseId === course.slug));
+        }
+      })
+      .catch(err => console.error('Failed to load enrollments on detail page:', err));
+  }, [user, course]);
+
   if (!course) return <NotFound />;
-  const isEnrolled = false;
+
   function handleEnroll() {
     if (!user) { navigate('/signup'); return; }
     if (course.priceInr === 0 || isEnrolled) navigate(`/dashboard/learn/${course.id}/${getFirstLesson(course)}`);
@@ -691,17 +712,48 @@ function DashboardLayout({ user, children }) {
 }
 
 function DashboardPage({ user }) {
-  const enrolled = staticCourses.filter((c) => c.priceInr === 0);
+  const [enrolled, setEnrolled] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!user) return;
+    setLoading(true);
+    fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/payments/enrollments/${user.id}`)
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          const dbCourseIds = data.map(e => e.courseId);
+          const list = staticCourses.filter(c => c.priceInr === 0 || dbCourseIds.includes(c.id) || dbCourseIds.includes(c.slug));
+          setEnrolled(list);
+        } else {
+          setEnrolled(staticCourses.filter(c => c.priceInr === 0));
+        }
+      })
+      .catch(err => {
+        console.error('Failed to load user enrollments on dashboard:', err);
+        setEnrolled(staticCourses.filter(c => c.priceInr === 0));
+      })
+      .finally(() => setLoading(false));
+  }, [user]);
+
+  if (loading) {
+    return (
+      <DashboardLayout user={user}>
+        <PremiumLoader message="Loading your enrolled courses..." type="dashboard" />
+      </DashboardLayout>
+    );
+  }
+
   return (
     <DashboardLayout user={user}>
       <SectionTitle eyebrow="Dashboard" title="Welcome back to your learning workspace" />
       <div className="mt-8 grid gap-5 md:grid-cols-3">
-        {[['Free courses', enrolled.length],['Lessons completed', 0],['Current plan','Free']].map(([label,value]) => (
+        {[['My Courses', enrolled.length],['Lessons completed', 0],['Current plan', enrolled.length > 1 ? 'Premium' : 'Free']].map(([label,value]) => (
           <div className="metric-card" key={label}><span>{label}</span><strong>{value}</strong></div>
         ))}
       </div>
       <div className="mt-10">
-        <SectionTitle eyebrow="Available Courses" title="Start learning today" />
+        <SectionTitle eyebrow="My Courses" title="Start learning today" />
         <div className="mt-8 grid gap-5 lg:grid-cols-2">
           {enrolled.map((c) => (
             <article className="learning-card" key={c.id}>
@@ -751,6 +803,25 @@ function CoursePlayerPage({ user }) {
   const prevLesson = currentIndex > 0 ? allLessons[currentIndex - 1] : null;
   const nextLesson = currentIndex < allLessons.length - 1 ? allLessons[currentIndex + 1] : null;
   const [completed, setCompleted] = useState(() => { try { return JSON.parse(localStorage.getItem(`completed_${courseId}`) || '[]'); } catch { return []; } });
+  
+  const [isEnrolled, setIsEnrolled] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    if (course.priceInr === 0) {
+      setIsEnrolled(true);
+      return;
+    }
+    fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/payments/enrollments/${user.id}`)
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          const enrolled = data.some(e => e.courseId === course.id || e.courseId === course.slug);
+          setIsEnrolled(enrolled);
+        }
+      })
+      .catch(err => console.error('Failed to load user enrollments in player:', err));
+  }, [user, course]);
   function markComplete() {
     const updated = completed.includes(currentLesson.id) ? completed : [...completed, currentLesson.id];
     setCompleted(updated); localStorage.setItem(`completed_${courseId}`, JSON.stringify(updated));
@@ -812,7 +883,22 @@ function CoursePlayerPage({ user }) {
         )}
         <div className="mt-7 flex flex-col justify-between gap-4 md:flex-row md:items-center">
           <div><span className="badge">{currentLesson.moduleTitle}</span><h2 className="mt-3 font-display text-3xl font-bold text-navy">{currentLesson.title}</h2></div>
-          {currentLesson.attachmentUrl && <a className="btn btn-outline" href={currentLesson.attachmentUrl} target="_blank" rel="noreferrer"><Download size={16} /> Download notes</a>}
+          <div className="flex flex-wrap gap-2">
+            {currentLesson.attachmentUrl && (
+              isEnrolled ? (
+                <a className="btn btn-outline" href={currentLesson.attachmentUrl} target="_blank" rel="noreferrer"><Download size={16} /> Download notes</a>
+              ) : (
+                <button className="btn btn-outline opacity-60 cursor-not-allowed" onClick={() => alert('🔒 Note download is reserved for enrolled students. Please purchase the course to access.')}><Download size={16} /> Download notes (Locked)</button>
+              )
+            )}
+            {hasVideo && (
+              isEnrolled ? (
+                <a className="btn btn-outline" href={currentLesson.videoUrl} download target="_blank" rel="noreferrer"><Download size={16} /> Download video</a>
+              ) : (
+                <button className="btn btn-outline opacity-60 cursor-not-allowed" onClick={() => alert('🔒 Video download is reserved for enrolled students. Please purchase the course to access.')}><Download size={16} /> Download video (Locked)</button>
+              )
+            )}
+          </div>
         </div>
         <article className="lesson-notes">{currentLesson.notes.split('\n').map((p, i) => p.trim() ? <p key={i}>{p}</p> : null)}</article>
         <div className="mt-8 flex items-center justify-between gap-3">
@@ -892,7 +978,7 @@ function PlansPage() {
                 </li>
                 <li className="flex items-center gap-2 text-sm text-slate-600">
                   <CheckCircle2 size={16} className="text-teal" />
-                  Certificate of completion
+                  Dedicated mentor support
                 </li>
                 <li className="flex items-center gap-2 text-sm text-slate-600">
                   <CheckCircle2 size={16} className="text-teal" />
@@ -1650,7 +1736,7 @@ export default function App() {
           <Route path="/courses" element={<CatalogPage />} />
           <Route path="/courses/:slug" element={<CourseDetailPage user={user} isAdmin={isAdmin} />} />
           <Route path="/courses/:slug/insights" element={<CourseInsights />} />
-          <Route path="/checkout/:slug" element={<CheckoutPage />} />
+          <Route path="/checkout/:slug" element={<RequireAuth user={user} loading={loading}><CheckoutPage user={user} /></RequireAuth>} />
           <Route path="/books" element={<Books />} />
           <Route path="/live" element={<LiveClasses />} />
           <Route path="/contact" element={<Contact />} />
