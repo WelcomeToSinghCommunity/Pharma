@@ -158,7 +158,7 @@ export const courses = [
     description:
       'Master airflow visualization studies in sterile pharmaceutical environments, from HVAC design to QA responsibilities and regulatory compliance.',
     thumbnail:
-      'https://images.unsplash.com/photo-1581093458791-9f3c3900df4b?auto=format&fit=crop&w=600&q=60',
+      '/smoke-study-thumbnail.png',
     instructor: 'Harish Singh',
     level: 'Advanced',
     priceInr: 1999,

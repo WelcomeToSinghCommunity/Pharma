@@ -9,21 +9,38 @@ function generateCode(userId) {
 }
 
 export async function getReferralCode(userId) {
-  if (!hasSupabaseConfig) return null;
-  const { data: existing } = await supabase
-    .from('referral_codes')
-    .select('code')
-    .eq('user_id', userId)
-    .single();
-  if (existing) return existing.code;
-  const code = generateCode(userId);
-  const { data, error } = await supabase
-    .from('referral_codes')
-    .insert({ user_id: userId, code })
-    .select('code')
-    .single();
-  if (error) return null;
-  return data.code;
+  if (!userId) return null;
+  
+  // Deterministic fallback code based on userId
+  const fallbackCode = generateCode(userId);
+
+  if (!hasSupabaseConfig) return fallbackCode;
+
+  try {
+    const { data: existing, error: selectError } = await supabase
+      .from('referral_codes')
+      .select('code')
+      .eq('user_id', userId);
+      
+    if (existing && existing.length > 0) {
+      return existing[0].code;
+    }
+    
+    // Attempt to save the new code in the database
+    const { data, error } = await supabase
+      .from('referral_codes')
+      .insert({ user_id: userId, code: fallbackCode })
+      .select('code');
+      
+    if (data && data.length > 0) {
+      return data[0].code;
+    }
+  } catch (err) {
+    console.error('Error in getReferralCode:', err);
+  }
+
+  // Fallback so the user always has a functional link instantly
+  return fallbackCode;
 }
 
 export function getReferralUrl(code) {
