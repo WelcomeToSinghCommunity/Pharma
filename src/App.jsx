@@ -1250,7 +1250,7 @@ function AdminCourseFormPage({ isAdmin }) {
   const [priceInr, setPriceInr] = useState(999);
   const [thumbnail, setThumbnail] = useState('');
   const [published, setPublished] = useState(false);
-  const [modules, setModules] = useState([{ title: '', lessons: [{ title: '', duration: '10 min', videoUrl: '', attachmentUrl: '', isPreview: false, notes: '' }] }]);
+  const [modules, setModules] = useState([{ title: '', lessons: [{ title: '', duration: '10 min', videoUrl: '', videoStreamId: '', attachmentUrl: '', isPreview: false, notes: '' }] }]);
   const [toast, setToast] = useState('');
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(null); // Track which file is uploading
@@ -1275,6 +1275,7 @@ function AdminCourseFormPage({ isAdmin }) {
               title: l.title,
               duration: l.videoDuration ? `${Math.floor(l.videoDuration / 60)} min` : '10 min',
               videoUrl: l.videoUrl || '',
+              videoStreamId: l.videoStreamId || '',
               attachmentUrl: l.attachmentUrl || '',
               isPreview: l.isPreview,
               notes: l.contentText || '',
@@ -1300,6 +1301,7 @@ function AdminCourseFormPage({ isAdmin }) {
                 title: l.title,
                 duration: l.duration || '10 min',
                 videoUrl: l.videoUrl || '',
+                videoStreamId: l.videoStreamId || '',
                 attachmentUrl: l.attachmentUrl || '',
                 isPreview: l.isPreview,
                 notes: l.notes || '',
@@ -1314,10 +1316,10 @@ function AdminCourseFormPage({ isAdmin }) {
   }, [editId]);
 
   function showToast(msg) { setToast(msg); setTimeout(() => setToast(''), 3500); }
-  function addModule() { setModules([...modules, { title: '', lessons: [{ title: '', duration: '10 min', videoUrl: '', attachmentUrl: '', isPreview: false, notes: '' }] }]); }
+  function addModule() { setModules([...modules, { title: '', lessons: [{ title: '', duration: '10 min', videoUrl: '', videoStreamId: '', attachmentUrl: '', isPreview: false, notes: '' }] }]); }
   function removeModule(mi) { setModules(modules.filter((_, i) => i !== mi)); }
   function updateModule(mi, field, value) { setModules(modules.map((m, i) => i === mi ? { ...m, [field]: value } : m)); }
-  function addLesson(mi) { setModules(modules.map((m, i) => i === mi ? { ...m, lessons: [...m.lessons, { title: '', duration: '10 min', videoUrl: '', attachmentUrl: '', isPreview: false, notes: '' }] } : m)); }
+  function addLesson(mi) { setModules(modules.map((m, i) => i === mi ? { ...m, lessons: [...m.lessons, { title: '', duration: '10 min', videoUrl: '', videoStreamId: '', attachmentUrl: '', isPreview: false, notes: '' }] } : m)); }
   function removeLesson(mi, li) { setModules(modules.map((m, i) => i === mi ? { ...m, lessons: m.lessons.filter((_, j) => j !== li) } : m)); }
   function updateLesson(mi, li, field, value) { setModules(modules.map((m, i) => i === mi ? { ...m, lessons: m.lessons.map((l, j) => j === li ? { ...l, [field]: value } : l) } : m)); }
   
@@ -1787,6 +1789,12 @@ function SessionTimeoutHandler({ user }) {
   const [countdown, setCountdown] = useState(180); // 3 minutes in seconds
   const warningTimerRef = useRef(null);
   const countdownIntervalRef = useRef(null);
+  const showWarningRef = useRef(false);
+
+  // Sync ref with state to prevent React hook race conditions/cleanup loops
+  useEffect(() => {
+    showWarningRef.current = showWarning;
+  }, [showWarning]);
 
   const resetTimer = () => {
     setShowWarning(false);
@@ -1812,12 +1820,16 @@ function SessionTimeoutHandler({ user }) {
 
     const events = ['mousemove', 'keypress', 'mousedown', 'scroll', 'click'];
     const handleActivity = () => {
-      if (!showWarning) {
+      // If we are currently showing the warning modal, mouse movement should NOT auto-reset.
+      // The user must explicitly click "Keep Working".
+      if (!showWarningRef.current) {
         resetTimer();
       }
     };
 
     events.forEach(e => window.addEventListener(e, handleActivity));
+    
+    // Initial start
     resetTimer();
 
     return () => {
@@ -1825,7 +1837,7 @@ function SessionTimeoutHandler({ user }) {
       if (warningTimerRef.current) clearTimeout(warningTimerRef.current);
       if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
     };
-  }, [user, showWarning]);
+  }, [user]); // ONLY depend on user auth state to prevent listener cleanup loops
 
   useEffect(() => {
     if (showWarning) {
