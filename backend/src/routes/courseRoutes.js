@@ -46,9 +46,15 @@ async function checkEnrollment(userId, courseId, adminEmail = 'harideepsingh13@g
     // 1. Check if user is admin
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { isAdmin: true, email: true }
+      select: { isAdmin: true, role: true, email: true }
     });
-    if (user && (user.isAdmin || user.email === adminEmail)) {
+    const adminEmails = ['harideepsingh13@gmail.com', 'kishansingh.nmims@gmail.com'];
+    if (user && (
+      user.isAdmin || 
+      user.role === 'admin' || 
+      user.email === adminEmail || 
+      adminEmails.includes(user.email?.toLowerCase())
+    )) {
       return true;
     }
     
