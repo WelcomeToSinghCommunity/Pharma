@@ -1781,6 +1781,113 @@ function Footer() {
   );
 }
 
+// ─── Session Timeout Handler (5 min total: warning at 2 min, logout 3 min later) ──
+function SessionTimeoutHandler({ user }) {
+  const [showWarning, setShowWarning] = useState(false);
+  const [countdown, setCountdown] = useState(180); // 3 minutes in seconds
+  const warningTimerRef = useRef(null);
+  const countdownIntervalRef = useRef(null);
+
+  const resetTimer = () => {
+    setShowWarning(false);
+    setCountdown(180);
+    
+    // Clear existing timers
+    if (warningTimerRef.current) clearTimeout(warningTimerRef.current);
+    if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+
+    // Set warning timer for 2 minutes of inactivity (120,000 ms)
+    warningTimerRef.current = setTimeout(() => {
+      setShowWarning(true);
+    }, 120000);
+  };
+
+  useEffect(() => {
+    if (!user) {
+      if (warningTimerRef.current) clearTimeout(warningTimerRef.current);
+      if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+      setShowWarning(false);
+      return;
+    }
+
+    const events = ['mousemove', 'keypress', 'mousedown', 'scroll', 'click'];
+    const handleActivity = () => {
+      if (!showWarning) {
+        resetTimer();
+      }
+    };
+
+    events.forEach(e => window.addEventListener(e, handleActivity));
+    resetTimer();
+
+    return () => {
+      events.forEach(e => window.removeEventListener(e, handleActivity));
+      if (warningTimerRef.current) clearTimeout(warningTimerRef.current);
+      if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+    };
+  }, [user, showWarning]);
+
+  useEffect(() => {
+    if (showWarning) {
+      countdownIntervalRef.current = setInterval(() => {
+        setCountdown(prev => {
+          if (prev <= 1) {
+            clearInterval(countdownIntervalRef.current);
+            supabase.auth.signOut();
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+
+    return () => {
+      if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+    };
+  }, [showWarning]);
+
+  const formatCountdown = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  if (!showWarning) return null;
+
+  return (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div className="w-full max-w-md rounded-2xl bg-white border border-slate-100 p-6 shadow-2xl text-center">
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-amber-50 text-amber-500 mb-4 animate-pulse">
+          <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+        </div>
+        <h3 className="font-display text-xl font-bold text-navy">Inactivity Warning</h3>
+        <p className="mt-2 text-slate-600 text-sm leading-relaxed">
+          For your security, you will be logged out in:
+        </p>
+        <div className="my-4 font-mono text-4xl font-extrabold text-amber-600 tracking-wider">
+          {formatCountdown(countdown)}
+        </div>
+        <div className="flex gap-3 mt-6">
+          <button 
+            onClick={() => supabase.auth.signOut()} 
+            className="flex-1 justify-center py-2.5 text-slate-600 bg-slate-100 hover:bg-slate-200 transition rounded-xl text-sm font-semibold"
+          >
+            Logout
+          </button>
+          <button 
+            onClick={resetTimer} 
+            className="flex-1 justify-center py-2.5 bg-teal text-white hover:bg-teal-600 transition rounded-xl text-sm font-semibold shadow-md"
+          >
+            Keep Working
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── App root ─────────────────────────────────────────────────────────────────
 export default function App() {
   const { user, isAdmin, loading } = useAuth();
@@ -1832,6 +1939,7 @@ export default function App() {
         </div>
       )}
       <Header user={user} isAdmin={isAdmin} />
+      <SessionTimeoutHandler user={user} />
       <main className="flex-1">
         <Routes>
           <Route path="/" element={<LandingPage />} />
