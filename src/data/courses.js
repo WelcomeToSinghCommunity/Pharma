@@ -296,7 +296,7 @@ export function getLessonById(course, lessonId) {
   const allLessons = course.modules.flatMap((module, moduleIndex) =>
     module.lessons.map((lessonItem, lessonIndex) => ({
       ...lessonItem,
-      id: makeLessonId(module.title, lessonIndex),
+      id: lessonItem.id || makeLessonId(module.title, lessonIndex),
       moduleTitle: module.title,
       moduleIndex,
       lessonIndex,

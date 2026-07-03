@@ -49,8 +49,23 @@ function useAuth() {
   const [session, setSession] = useState(undefined);
   useEffect(() => {
     if (!hasSupabaseConfig) { setSession(null); return; }
-    supabase.auth.getSession().then(({ data }) => setSession(data.session));
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
+    supabase.auth.getSession().then(({ data }) => {
+      const s = data.session;
+      setSession(s);
+      if (s?.user?.id) {
+        localStorage.setItem('userId', s.user.id);
+      } else {
+        localStorage.removeItem('userId');
+      }
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => {
+      setSession(s);
+      if (s?.user?.id) {
+        localStorage.setItem('userId', s.user.id);
+      } else {
+        localStorage.removeItem('userId');
+      }
+    });
     return () => subscription.unsubscribe();
   }, []);
   const user = session?.user ?? null;
@@ -793,21 +808,40 @@ function ProfilePage({ user }) {
 
 // ─── Course Player ────────────────────────────────────────────────────────────
 function CoursePlayerPage({ user }) {
-  const { courseId, lessonId } = useParams(); const navigate = useNavigate();
-  const course = staticCourses.find((c) => c.id === courseId) ?? staticCourses[0];
-  const allLessons = course.modules.flatMap((mod, mi) =>
-    mod.lessons.map((lesson, li) => ({ ...lesson, id: makeLessonId(mod.title, li), moduleTitle: mod.title, moduleIndex: mi, lessonIndex: li }))
-  );
-  const currentLesson = getLessonById(course, lessonId);
-  const currentIndex = allLessons.findIndex((l) => l.id === currentLesson.id);
-  const prevLesson = currentIndex > 0 ? allLessons[currentIndex - 1] : null;
-  const nextLesson = currentIndex < allLessons.length - 1 ? allLessons[currentIndex + 1] : null;
-  const [completed, setCompleted] = useState(() => { try { return JSON.parse(localStorage.getItem(`completed_${courseId}`) || '[]'); } catch { return []; } });
-  
+  const { courseId, lessonId } = useParams();
+  const navigate = useNavigate();
+  const [course, setCourse] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [isEnrolled, setIsEnrolled] = useState(false);
+  const [completed, setCompleted] = useState([]);
 
+  // Load course details from database or static fallback
   useEffect(() => {
-    if (!user) return;
+    if (!courseId) return;
+    setLoading(true);
+    getCourseById(courseId)
+      .then(data => {
+        if (data && data.id) {
+          setCourse(data);
+        } else {
+          const staticCourse = staticCourses.find(c => c.id === courseId);
+          setCourse(staticCourse || staticCourses[0]);
+        }
+      })
+      .catch(err => {
+        console.error('Failed to load course for player:', err);
+        const staticCourse = staticCourses.find(c => c.id === courseId);
+        setCourse(staticCourse || staticCourses[0]);
+      })
+      .finally(() => setLoading(false));
+  }, [courseId]);
+
+  // Load enrollment details
+  useEffect(() => {
+    if (!user || !course) {
+      setIsEnrolled(false);
+      return;
+    }
     if (course.priceInr === 0) {
       setIsEnrolled(true);
       return;
@@ -822,13 +856,67 @@ function CoursePlayerPage({ user }) {
       })
       .catch(err => console.error('Failed to load user enrollments in player:', err));
   }, [user, course]);
+
+  // Load completed lessons from localStorage
+  useEffect(() => {
+    try {
+      setCompleted(JSON.parse(localStorage.getItem(`completed_${courseId}`) || '[]'));
+    } catch {
+      setCompleted([]);
+    }
+  }, [courseId]);
+
+  // Derive flat list of lessons and the current active lesson
+  const allLessons = useMemo(() => {
+    if (!course) return [];
+    return course.modules.flatMap((mod, mi) =>
+      mod.lessons.map((lesson, li) => {
+        const generatedId = makeLessonId(mod.title, li);
+        return {
+          ...lesson,
+          id: lesson.id || generatedId,
+          generatedId,
+          moduleTitle: mod.title,
+          moduleIndex: mi,
+          lessonIndex: li,
+          notes: lesson.notes || lesson.contentText || '',
+          duration: lesson.duration || (lesson.videoDuration ? `${Math.floor(lesson.videoDuration / 60)} min` : '10 min'),
+        };
+      })
+    );
+  }, [course]);
+
+  const currentLesson = useMemo(() => {
+    if (!allLessons.length) return null;
+    return allLessons.find((l) => l.id === lessonId || l.generatedId === lessonId) || allLessons[0];
+  }, [allLessons, lessonId]);
+
+  const currentIndex = useMemo(() => {
+    if (!allLessons.length || !currentLesson) return -1;
+    return allLessons.findIndex((l) => l.id === currentLesson.id);
+  }, [allLessons, currentLesson]);
+
+  const prevLesson = currentIndex > 0 ? allLessons[currentIndex - 1] : null;
+  const nextLesson = currentIndex < allLessons.length - 1 && currentIndex !== -1 ? allLessons[currentIndex + 1] : null;
+
   function markComplete() {
+    if (!currentLesson) return;
     const updated = completed.includes(currentLesson.id) ? completed : [...completed, currentLesson.id];
-    setCompleted(updated); localStorage.setItem(`completed_${courseId}`, JSON.stringify(updated));
-    if (nextLesson) navigate(`/dashboard/learn/${course.id}/${nextLesson.id}`);
+    setCompleted(updated);
+    localStorage.setItem(`completed_${courseId}`, JSON.stringify(updated));
+    if (nextLesson) {
+      navigate(`/dashboard/learn/${course.id}/${nextLesson.id}`);
+    }
   }
+
   const isCompleted = (id) => completed.includes(id);
-  const hasVideo = currentLesson.videoUrl && currentLesson.videoUrl !== '/videos/upload-your-video.mp4';
+
+  if (loading || !course || !currentLesson) {
+    return <PremiumLoader message="Entering virtual classroom..." type="player" />;
+  }
+
+  const hasVideo = (currentLesson.videoUrl && currentLesson.videoUrl !== '/videos/upload-your-video.mp4') || currentLesson.videoStreamId;
+
   return (
     <section className="player-shell">
       <aside className="lesson-sidebar">
@@ -857,7 +945,7 @@ function CoursePlayerPage({ user }) {
               </h2>
               <div className="sidebar-lessons-list">
                 {mod.lessons.map((lesson, li) => { 
-                  const id = makeLessonId(mod.title, li); 
+                  const id = lesson.id || makeLessonId(mod.title, li); 
                   const done = isCompleted(id); 
                   return (
                     <Link 
@@ -877,7 +965,14 @@ function CoursePlayerPage({ user }) {
       </aside>
       <main className="player-main">
         {hasVideo ? (
-          <VideoPlayer src={currentLesson.videoUrl} courseId={courseId} videoId={currentLesson.id} title={currentLesson.title} user={user} />
+          <VideoPlayer 
+            src={currentLesson.videoUrl} 
+            videoStreamId={currentLesson.videoStreamId} 
+            courseId={courseId} 
+            videoId={currentLesson.id} 
+            title={currentLesson.title} 
+            user={user} 
+          />
         ) : (
           <div className="content-only-banner"><BookOpen size={32} className="text-teal" aria-hidden="true" /><p>Reading lesson — no video for this topic</p></div>
         )}
@@ -900,7 +995,13 @@ function CoursePlayerPage({ user }) {
             )}
           </div>
         </div>
-        <article className="lesson-notes">{currentLesson.notes.split('\n').map((p, i) => p.trim() ? <p key={i}>{p}</p> : null)}</article>
+        <div className="lesson-notes mt-5">
+          {currentLesson.notes ? (
+            currentLesson.notes.split('\n').map((p, i) => p.trim() ? <p key={i} className="mb-4 text-slate-700 leading-relaxed">{p}</p> : null)
+          ) : (
+            <p className="text-slate-400 italic">No notes available for this lesson.</p>
+          )}
+        </div>
         <div className="mt-8 flex items-center justify-between gap-3">
           <button className="btn btn-outline" disabled={!prevLesson} onClick={() => prevLesson && navigate(`/dashboard/learn/${course.id}/${prevLesson.id}`)}><ArrowLeft size={16} /> Previous</button>
           <span className="text-sm text-slate-400">{currentIndex + 1} / {allLessons.length}</span>

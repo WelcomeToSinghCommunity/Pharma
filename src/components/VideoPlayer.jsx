@@ -14,7 +14,7 @@ function fmtTime(s) {
   return `${m}:${sec.toString().padStart(2, '0')}`;
 }
 
-export default function VideoPlayer({ src, courseId, videoId, title, subtitlesUrl, user }) {
+export default function VideoPlayer({ src, videoStreamId, courseId, videoId, title, subtitlesUrl, user }) {
   const videoRef = useRef(null);
   const containerRef = useRef(null);
   const saveTimer = useRef(null);
@@ -44,13 +44,6 @@ export default function VideoPlayer({ src, courseId, videoId, title, subtitlesUr
       });
   }, [user, videoId]);
 
-  function handleLoadedMetadata() {
-    const v = videoRef.current;
-    if (!v) return;
-    setDuration(v.duration ?? 0);
-    if (resumeFrom) v.currentTime = resumeFrom;
-  }
-
   const saveProgress = useCallback(async (ts, completed = false) => {
     if (!hasSupabaseConfig || !user || !videoId) return;
     await supabase.from('video_progress').upsert({
@@ -62,6 +55,61 @@ export default function VideoPlayer({ src, courseId, videoId, title, subtitlesUr
       last_watched_at: new Date().toISOString(),
     }, { onConflict: 'user_id,video_id' });
   }, [user, videoId, courseId]);
+
+  // Listener for Bunny.net Stream iframe messages (PlayerJS standard)
+  useEffect(() => {
+    const isBunny = !!videoStreamId || src?.includes('mediadelivery.net') || src?.includes('b-cdn.net');
+    if (!isBunny) return;
+
+    function handlePlayerMessage(e) {
+      if (!e.origin.includes('mediadelivery.net') && !e.origin.includes('bunnycdn.com')) return;
+      
+      try {
+        let data = e.data;
+        if (typeof data === 'string') {
+          data = JSON.parse(data);
+        }
+        
+        const eventType = data.event || data.type;
+        if (eventType === 'timeupdate') {
+          const val = data.value || data.data || {};
+          const time = typeof val === 'number' ? val : (val.seconds || val.currentTime || 0);
+          const dur = val.duration || duration || 0;
+          
+          setCurrentTime(time);
+          if (dur > 0) {
+            setDuration(dur);
+            if (time / dur >= 0.9) {
+              setShowComplete(true);
+            }
+          }
+          
+          clearTimeout(saveTimer.current);
+          saveTimer.current = setTimeout(() => saveProgress(time), 10000);
+        } else if (eventType === 'ended') {
+          setShowComplete(true);
+          saveProgress(duration || currentTime, true);
+        }
+      } catch (err) {
+        // Ignore parsing errors from other source messages
+      }
+    }
+
+    window.addEventListener('message', handlePlayerMessage);
+    return () => {
+      window.removeEventListener('message', handlePlayerMessage);
+      clearTimeout(saveTimer.current);
+    };
+  }, [videoStreamId, src, duration, currentTime, saveProgress]);
+
+  function handleLoadedMetadata() {
+    const v = videoRef.current;
+    if (!v) return;
+    setDuration(v.duration ?? 0);
+    if (resumeFrom) v.currentTime = resumeFrom;
+  }
+
+
 
   function handleTimeUpdate() {
     const v = videoRef.current;
@@ -137,6 +185,37 @@ export default function VideoPlayer({ src, courseId, videoId, title, subtitlesUr
   }, [duration]);
 
   const pct = duration > 0 ? (currentTime / duration) * 100 : 0;
+
+  const isBunnyVideo = !!videoStreamId || src?.includes('mediadelivery.net') || src?.includes('b-cdn.net');
+  const bunnyLibraryId = '696606';
+  const bunnyVideoId = videoStreamId || src?.split('/embed/')[1]?.split('?')[0] || src?.split('b-cdn.net/')[1]?.split('/')[0];
+
+  if (isBunnyVideo && bunnyVideoId) {
+    const iframeSrc = `https://iframe.mediadelivery.net/embed/${bunnyLibraryId}/${bunnyVideoId}?autoplay=false${resumeFrom ? `&t=${resumeFrom}` : ''}`;
+    
+    return (
+      <div className="w-full flex flex-col">
+        <div className="w-full aspect-video rounded bg-black overflow-hidden relative shadow-soft">
+          <iframe
+            src={iframeSrc}
+            loading="lazy"
+            className="absolute top-0 left-0 w-full h-full border-none"
+            allow="accelerometer; gyroscope; autocomplete; encrypted-media; picture-in-picture;"
+            allowFullScreen={true}
+          />
+        </div>
+        {showComplete && (
+          <div className="mt-3 flex items-center gap-3 rounded border border-teal/30 bg-teal/5 px-4 py-3">
+            <PlayCircle size={20} className="text-teal" />
+            <span className="flex-1 text-sm font-semibold text-teal">You've watched 90% — ready to mark complete?</span>
+            <button className="btn btn-teal text-sm" onClick={() => saveProgress(currentTime, true)}>
+              Mark Complete
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div ref={containerRef} className="video-player-wrap">

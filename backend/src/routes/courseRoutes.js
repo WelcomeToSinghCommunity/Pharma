@@ -1,8 +1,112 @@
 import express from 'express';
+import crypto from 'crypto';
 import prisma from '../config/database.js';
 import { deleteThumbnail, deleteMaterial, deleteVideo } from '../services/supabaseStorageService.js';
+import { deleteVideo as deleteBunnyVideo } from '../services/bunnyStreamService.js';
 
 const router = express.Router();
+
+// ============================================
+// BUNNY.NET EMBED SIGNATURE HELPERS
+// ============================================
+
+const BUNNY_TOKEN_AUTH_KEY = process.env.BUNNY_TOKEN_AUTH_KEY || '2313c9f4-7d1d-4419-bf32-8cf7cd177946';
+const BUNNY_LIBRARY_ID = process.env.BUNNY_LIBRARY_ID || '696606';
+
+/**
+ * Generate a secure signed URL for the Bunny.net video player iframe
+ */
+function signBunnyUrl(videoStreamId) {
+  if (!BUNNY_TOKEN_AUTH_KEY || !videoStreamId) return null;
+  
+  const expirationTimeInSeconds = 10800; // 3 hours link expiration
+  const expires = Math.floor(Date.now() / 1000) + expirationTimeInSeconds;
+  
+  // Signature algorithm: SHA256_HEX(token_security_key + video_id + expiration)
+  const signatureString = BUNNY_TOKEN_AUTH_KEY + videoStreamId + expires;
+  const token = crypto.createHash('sha256').update(signatureString).digest('hex');
+  
+  return `https://iframe.mediadelivery.net/embed/${BUNNY_LIBRARY_ID}/${videoStreamId}?token=${token}&expires=${expires}`;
+}
+
+/**
+ * Check if the user is enrolled in the course or has admin privileges
+ */
+async function checkEnrollment(userId, courseId, adminEmail = 'harideepsingh13@gmail.com') {
+  if (!userId) return false;
+  
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  
+  // If user ID is not a valid UUID format, it cannot exist in auth/profiles, so return false
+  if (!uuidRegex.test(userId)) {
+    return false;
+  }
+  
+  try {
+    // 1. Check if user is admin
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { isAdmin: true, email: true }
+    });
+    if (user && (user.isAdmin || user.email === adminEmail)) {
+      return true;
+    }
+    
+    // 2. Resolve courseId if it is a slug
+    let realCourseId = courseId;
+    if (!uuidRegex.test(courseId)) {
+      const course = await prisma.course.findUnique({
+        where: { slug: courseId },
+        select: { id: true }
+      });
+      if (!course) return false;
+      realCourseId = course.id;
+    }
+    
+    // 3. Check active enrollment
+    const enrollment = await prisma.enrollment.findUnique({
+      where: {
+        userId_courseId: {
+          userId: userId,
+          courseId: realCourseId
+        }
+      }
+    });
+    
+    return !!enrollment;
+  } catch (error) {
+    console.error('[Security] Error checking enrollment:', error);
+    return false;
+  }
+}
+
+/**
+ * Secure course lessons: generate signed URLs for allowed users/previews, and redact locked content
+ */
+async function secureAndSignCourse(course, userId) {
+  const isEnrolled = course.priceInr === 0 || await checkEnrollment(userId, course.id);
+  
+  // Create a deep copy of the course object
+  const courseCopy = JSON.parse(JSON.stringify(course));
+  
+  for (const module of courseCopy.modules) {
+    for (const lesson of module.lessons) {
+      const canAccess = isEnrolled || lesson.isPreview;
+      
+      if (canAccess) {
+        if (lesson.videoStreamId) {
+          lesson.videoUrl = signBunnyUrl(lesson.videoStreamId);
+        }
+      } else {
+        // Redact locked content details to prevent direct access
+        lesson.videoUrl = null;
+        lesson.videoStreamId = null;
+      }
+    }
+  }
+  
+  return courseCopy;
+}
 
 // ============================================
 // COURSES
@@ -52,6 +156,7 @@ router.get('/', async (req, res) => {
 router.get('/slug/:slug', async (req, res) => {
   try {
     const { slug } = req.params;
+    const userId = req.headers['x-user-id'];
 
     const course = await prisma.course.findUnique({
       where: { slug },
@@ -71,7 +176,8 @@ router.get('/slug/:slug', async (req, res) => {
       return res.status(404).json({ error: 'Course not found' });
     }
 
-    res.json(course);
+    const securedCourse = await secureAndSignCourse(course, userId);
+    res.json(securedCourse);
   } catch (error) {
     console.error('Get course by slug error:', error);
     res.status(500).json({ error: 'Failed to fetch course' });
@@ -82,26 +188,48 @@ router.get('/slug/:slug', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    const userId = req.headers['x-user-id'];
 
-    const course = await prisma.course.findUnique({
-      where: { id },
-      include: {
-        modules: {
-          include: {
-            lessons: {
-              orderBy: { sortOrder: 'asc' },
+    // UUID format validation regex
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    
+    let course;
+    if (uuidRegex.test(id)) {
+      course = await prisma.course.findUnique({
+        where: { id },
+        include: {
+          modules: {
+            include: {
+              lessons: {
+                orderBy: { sortOrder: 'asc' },
+              },
             },
+            orderBy: { sortOrder: 'asc' },
           },
-          orderBy: { sortOrder: 'asc' },
         },
-      },
-    });
+      });
+    } else {
+      course = await prisma.course.findUnique({
+        where: { slug: id },
+        include: {
+          modules: {
+            include: {
+              lessons: {
+                orderBy: { sortOrder: 'asc' },
+              },
+            },
+            orderBy: { sortOrder: 'asc' },
+          },
+        },
+      });
+    }
 
     if (!course) {
       return res.status(404).json({ error: 'Course not found' });
     }
 
-    res.json(course);
+    const securedCourse = await secureAndSignCourse(course, userId);
+    res.json(securedCourse);
   } catch (error) {
     console.error('Get course error:', error);
     res.status(500).json({ error: 'Failed to fetch course' });
@@ -204,8 +332,20 @@ router.put('/:id', async (req, res) => {
 
     console.log('Updating course:', id, 'with data:', { title, slug, modulesCount: modules?.length });
 
-    // Check if course exists
-    const existing = await prisma.course.findUnique({ where: { id } });
+    // Check if ID is a valid UUID, otherwise find by slug first to get the real UUID
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    let realId = id;
+    
+    let existing;
+    if (uuidRegex.test(id)) {
+      existing = await prisma.course.findUnique({ where: { id } });
+    } else {
+      existing = await prisma.course.findUnique({ where: { slug: id } });
+      if (existing) {
+        realId = existing.id; // Map it to the database UUID!
+      }
+    }
+
     if (!existing) {
       return res.status(404).json({ error: 'Course not found' });
     }
@@ -220,7 +360,7 @@ router.put('/:id', async (req, res) => {
 
     // Update course
     const course = await prisma.course.update({
-      where: { id },
+      where: { id: realId },
       data: {
         ...(slug && { slug }),
         ...(title && { title }),
@@ -237,15 +377,15 @@ router.put('/:id', async (req, res) => {
 
     // Handle modules update if provided
     if (modules) {
-      console.log('Updating modules for course:', id);
+      console.log('Updating modules for course:', realId);
       // Delete existing modules and lessons
-      await prisma.module.deleteMany({ where: { courseId: id } });
+      await prisma.module.deleteMany({ where: { courseId: realId } });
 
       // Create new modules and lessons
       for (const [modIndex, mod] of modules.entries()) {
         const createdModule = await prisma.module.create({
           data: {
-            courseId: id,
+            courseId: realId,
             title: mod.title,
             sortOrder: modIndex,
           },
@@ -273,7 +413,7 @@ router.put('/:id', async (req, res) => {
 
     // Fetch updated course with relations
     const updatedCourse = await prisma.course.findUnique({
-      where: { id },
+      where: { id: realId },
       include: {
         modules: {
           include: {
@@ -295,17 +435,37 @@ router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Get course with all data to delete associated files
-    const course = await prisma.course.findUnique({
-      where: { id },
-      include: {
-        modules: {
-          include: {
-            lessons: true,
+    // Check if ID is a valid UUID, otherwise find by slug first to get the real UUID
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    let realId = id;
+    
+    let course;
+    if (uuidRegex.test(id)) {
+      course = await prisma.course.findUnique({
+        where: { id },
+        include: {
+          modules: {
+            include: {
+              lessons: true,
+            },
           },
         },
-      },
-    });
+      });
+    } else {
+      course = await prisma.course.findUnique({
+        where: { slug: id },
+        include: {
+          modules: {
+            include: {
+              lessons: true,
+            },
+          },
+        },
+      });
+      if (course) {
+        realId = course.id; // Map it to the database UUID!
+      }
+    }
 
     if (!course) {
       return res.status(404).json({ error: 'Course not found' });
@@ -321,15 +481,21 @@ router.delete('/:id', async (req, res) => {
       }
     }
 
-    // Delete videos and materials from Supabase Storage
+    // Delete videos and materials from Bunny.net and Supabase Storage
     for (const module of course.modules) {
       for (const lesson of module.lessons) {
-        if (lesson.videoUrl) {
+        if (lesson.videoStreamId) {
+          try {
+            await deleteBunnyVideo(lesson.videoStreamId);
+          } catch (error) {
+            console.error('Failed to delete Bunny.net video:', error);
+          }
+        } else if (lesson.videoUrl && !lesson.videoUrl.includes('mediadelivery.net')) {
           try {
             const key = lesson.videoUrl.split('/').pop();
             await deleteVideo(key);
           } catch (error) {
-            console.error('Failed to delete video:', error);
+            console.error('Failed to delete Supabase video:', error);
           }
         }
         if (lesson.attachmentUrl) {
@@ -344,7 +510,7 @@ router.delete('/:id', async (req, res) => {
     }
 
     // Delete course (cascade will delete modules and lessons)
-    await prisma.course.delete({ where: { id } });
+    await prisma.course.delete({ where: { id: realId } });
 
     res.json({ message: 'Course deleted successfully' });
   } catch (error) {
@@ -498,12 +664,18 @@ router.delete('/lessons/:id', async (req, res) => {
     const lesson = await prisma.lesson.findUnique({ where: { id } });
     
     if (lesson) {
-      if (lesson.videoUrl) {
+      if (lesson.videoStreamId) {
+        try {
+          await deleteBunnyVideo(lesson.videoStreamId);
+        } catch (error) {
+          console.error('Failed to delete Bunny.net video:', error);
+        }
+      } else if (lesson.videoUrl && !lesson.videoUrl.includes('mediadelivery.net')) {
         try {
           const key = lesson.videoUrl.split('/').pop();
           await deleteVideo(key);
         } catch (error) {
-          console.error('Failed to delete video:', error);
+          console.error('Failed to delete Supabase video:', error);
         }
       }
       if (lesson.attachmentUrl) {

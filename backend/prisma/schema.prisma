@@ -11,18 +11,19 @@ datasource db {
 }
 
 // ============================================
-// USER & AUTH
+// USER & AUTH (Maps to profiles table)
 // ============================================
 
 model User {
-  id            String    @id @default(uuid())
+  id            String    @id @db.Uuid
   email         String    @unique
-  fullName      String?
-  avatarUrl     String?
-  isInstructor  Boolean   @default(false)
-  isAdmin       Boolean   @default(false)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  fullName      String?   @map("full_name")
+  avatarUrl     String?   @map("avatar_url")
+  role          String    @default("learner") // Preserved role column for RLS policies
+  isInstructor  Boolean   @default(false) @map("is_instructor")
+  isAdmin       Boolean   @default(false) @map("is_admin")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime? @updatedAt @map("updated_at")
 
   // Relations
   comments      Comment[]
@@ -30,26 +31,30 @@ model User {
   commentLikes  CommentLike[]
   videoLikes    VideoLike[]
   enrollments   Enrollment[]
+  subscriptions UserSubscription[]
+  videoProgress VideoProgress[]
+
+  @@map("profiles")
 }
 
 // ============================================
-// COURSES
+// COURSES (Maps to courses table)
 // ============================================
 
 model Course {
-  id              String    @id @default(uuid())
+  id              String    @id @default(uuid()) @db.Uuid
   slug            String    @unique
   title           String
-  shortDesc       String
+  shortDesc       String    @map("short_desc")
   description     String    @db.Text
-  thumbnailUrl    String?
+  thumbnailUrl    String?   @map("thumbnail_url")
   instructor      String    @default("Harish Singh")
-  level           Level     @default(INTERMEDIATE)
-  priceInr        Int       @default(0)
-  whatYouWillLearn String[] @default([])
-  isPublished     Boolean   @default(false)
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  level           String    @default("Intermediate")
+  priceInr        Int       @default(0) @map("price_inr")
+  whatYouWillLearn String[] @default([]) @map("what_you_will_learn")
+  isPublished     Boolean   @default(false) @map("is_published")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
 
   // Relations
   modules         Module[]
@@ -57,25 +62,26 @@ model Course {
 
   @@index([slug])
   @@index([isPublished])
+  @@map("courses")
 }
 
 enum Level {
-  BEGINNER
-  INTERMEDIATE
-  ADVANCED
+  BEGINNER      @map("Beginner")
+  INTERMEDIATE  @map("Intermediate")
+  ADVANCED      @map("Advanced")
 }
 
 // ============================================
-// MODULES
+// MODULES (Maps to modules table)
 // ============================================
 
 model Module {
-  id          String    @id @default(uuid())
-  courseId    String
+  id          String    @id @default(uuid()) @db.Uuid
+  courseId    String    @map("course_id") @db.Uuid
   title       String
-  sortOrder   Int       @default(0)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  sortOrder   Int       @default(0) @map("sort_order")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime? @updatedAt @map("updated_at")
 
   // Relations
   course      Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
@@ -83,25 +89,26 @@ model Module {
 
   @@index([courseId])
   @@index([sortOrder])
+  @@map("modules")
 }
 
 // ============================================
-// LESSONS
+// LESSONS (Maps to lessons table)
 // ============================================
 
 model Lesson {
-  id              String    @id @default(uuid())
-  moduleId        String
+  id              String    @id @default(uuid()) @db.Uuid
+  moduleId        String    @map("module_id") @db.Uuid
   title           String
-  contentText     String?   @db.Text
-  videoUrl        String?
-  videoDuration   Int?      // in seconds
-  videoStreamId   String?   // Cloudflare Stream video ID
-  attachmentUrl   String?   // PDF/PPT
-  isPreview       Boolean   @default(false)
-  sortOrder       Int       @default(0)
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  contentText     String?   @db.Text @map("content_text")
+  videoUrl        String?   @map("video_url")
+  videoDuration   Int?      @map("video_duration") // in seconds
+  videoStreamId   String?   @map("videoStreamId")  // Maps to the case-sensitive column we created
+  attachmentUrl   String?   @map("attachment_url") // PDF/PPT
+  isPreview       Boolean   @default(false) @map("is_preview")
+  sortOrder       Int       @default(0) @map("sort_order")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime? @updatedAt @map("updated_at")
 
   // Relations
   module          Module    @relation(fields: [moduleId], references: [id], onDelete: Cascade)
@@ -110,18 +117,19 @@ model Lesson {
 
   @@index([moduleId])
   @@index([sortOrder])
+  @@map("lessons")
 }
 
 // ============================================
-// ENROLLMENTS
+// ENROLLMENTS (Maps to enrollments table)
 // ============================================
 
 model Enrollment {
-  id          String    @id @default(uuid())
-  userId      String
-  courseId    String
-  enrolledAt  DateTime  @default(now())
-  status      EnrollmentStatus @default(ACTIVE)
+  id          String    @id @default(uuid()) @db.Uuid
+  userId      String    @map("user_id") @db.Uuid
+  courseId    String    @map("course_id") @db.Uuid
+  enrolledAt  DateTime  @default(now()) @map("enrolled_at")
+  status      String    @default("active")
 
   // Relations
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -130,12 +138,7 @@ model Enrollment {
   @@unique([userId, courseId])
   @@index([userId])
   @@index([courseId])
-}
-
-enum EnrollmentStatus {
-  ACTIVE
-  EXPIRED
-  REFUNDED
+  @@map("enrollments")
 }
 
 // ============================================
@@ -143,13 +146,13 @@ enum EnrollmentStatus {
 // ============================================
 
 model Comment {
-  id          String    @id @default(uuid())
-  lessonId    String
-  userId      String
+  id          String    @id @default(uuid()) @db.Uuid
+  lessonId    String    @map("lesson_id") @db.Uuid
+  userId      String    @map("user_id") @db.Uuid
   content     String    @db.Text
-  isPinned    Boolean   @default(false)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  isPinned    Boolean   @default(false) @map("is_pinned")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
 
   // Relations
   lesson      Lesson    @relation(fields: [lessonId], references: [id], onDelete: Cascade)
@@ -161,6 +164,7 @@ model Comment {
   @@index([userId])
   @@index([isPinned])
   @@index([createdAt])
+  @@map("comments")
 }
 
 // ============================================
@@ -168,12 +172,12 @@ model Comment {
 // ============================================
 
 model Reply {
-  id          String    @id @default(uuid())
-  commentId   String
-  userId      String
+  id          String    @id @default(uuid()) @db.Uuid
+  commentId   String    @map("comment_id") @db.Uuid
+  userId      String    @map("user_id") @db.Uuid
   content     String    @db.Text
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
 
   // Relations
   comment     Comment   @relation(fields: [commentId], references: [id], onDelete: Cascade)
@@ -182,6 +186,7 @@ model Reply {
   @@index([commentId])
   @@index([userId])
   @@index([createdAt])
+  @@map("replies")
 }
 
 // ============================================
@@ -189,10 +194,10 @@ model Reply {
 // ============================================
 
 model CommentLike {
-  id          String    @id @default(uuid())
-  commentId   String
-  userId      String
-  createdAt   DateTime  @default(now())
+  id          String    @id @default(uuid()) @db.Uuid
+  commentId   String    @map("comment_id") @db.Uuid
+  userId      String    @map("user_id") @db.Uuid
+  createdAt   DateTime  @default(now()) @map("created_at")
 
   // Relations
   comment     Comment   @relation(fields: [commentId], references: [id], onDelete: Cascade)
@@ -201,6 +206,7 @@ model CommentLike {
   @@unique([commentId, userId])
   @@index([commentId])
   @@index([userId])
+  @@map("comment_likes")
 }
 
 // ============================================
@@ -208,11 +214,11 @@ model CommentLike {
 // ============================================
 
 model VideoLike {
-  id          String    @id @default(uuid())
-  lessonId    String
-  userId      String
-  type        ReactionType
-  createdAt   DateTime  @default(now())
+  id          String    @id @default(uuid()) @db.Uuid
+  lessonId    String    @map("lesson_id") @db.Uuid
+  userId      String    @map("user_id") @db.Uuid
+  type        String
+  createdAt   DateTime  @default(now()) @map("created_at")
 
   // Relations
   lesson      Lesson    @relation(fields: [lessonId], references: [id], onDelete: Cascade)
@@ -222,10 +228,123 @@ model VideoLike {
   @@index([lessonId])
   @@index([userId])
   @@index([type])
+  @@map("video_likes")
 }
 
-enum ReactionType {
-  LIKE
-  DISLIKE
+// ============================================
+// SUBSCRIPTIONS (Maps to subscription_plans & user_subscriptions)
+// ============================================
+
+model SubscriptionPlan {
+  id             String             @id @default(uuid()) @db.Uuid
+  name           String
+  priceInr       Int                @default(0) @map("price_inr")
+  interval       String?
+  description    String?
+  features       Json               @default("[]")
+  isActive       Boolean            @default(true) @map("is_active")
+  razorpayPlanId String?            @map("razorpay_plan_id")
+  subscriptions  UserSubscription[]
+
+  @@map("subscription_plans")
 }
 
+model UserSubscription {
+  id               String           @id @default(uuid()) @db.Uuid
+  userId           String           @map("user_id") @db.Uuid
+  planId           String           @map("plan_id") @db.Uuid
+  razorpaySubId    String?          @map("razorpay_sub_id")
+  status           String?
+  currentPeriodEnd DateTime?        @map("current_period_end")
+  createdAt        DateTime         @default(now()) @map("created_at")
+
+  // Relations
+  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan             SubscriptionPlan @relation(fields: [planId], references: [id], onDelete: Restrict)
+
+  @@map("user_subscriptions")
+}
+
+// ============================================
+// BOOKS (Maps to books)
+// ============================================
+
+model Book {
+  id                  String   @id @default(uuid()) @db.Uuid
+  title               String
+  author              String?
+  description         String?
+  coverImageUrl       String?  @map("cover_image_url")
+  price               Decimal?
+  razorpayPaymentLink String?  @map("razorpay_payment_link")
+  pdfUrl              String?  @map("pdf_url")
+  category            String?
+  isPublished         Boolean  @default(true) @map("is_published")
+  createdAt           DateTime @default(now()) @map("created_at")
+
+  @@map("books")
+}
+
+// ============================================
+// CONTACTS & NEWSLETTERS
+// ============================================
+
+model ContactSubmission {
+  id        String   @id @default(uuid()) @db.Uuid
+  firstName String   @map("first_name")
+  lastName  String   @map("last_name")
+  email     String
+  phone     String?
+  message   String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("contact_submissions")
+}
+
+model NewsletterSubscriber {
+  id        String   @id @default(uuid()) @db.Uuid
+  email     String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("newsletter_subscribers")
+}
+
+// ============================================
+// LIVE SESSIONS (Maps to live_sessions)
+// ============================================
+
+model LiveSession {
+  id           String    @id @default(uuid()) @db.Uuid
+  title        String
+  description  String?
+  scheduledAt  DateTime  @map("scheduled_at")
+  startedAt    DateTime? @map("started_at")
+  endedAt      DateTime? @map("ended_at")
+  status       String    @default("scheduled")
+  streamUrl    String?   @map("stream_url")
+  thumbnailUrl String?   @map("thumbnail_url")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  @@map("live_sessions")
+}
+
+// ============================================
+// VIDEO PLAYBACK TRACKING
+// ============================================
+
+model VideoProgress {
+  id               String    @id @default(uuid()) @db.Uuid
+  userId           String    @map("user_id") @db.Uuid
+  courseId         String?   @map("course_id") @db.Uuid
+  videoId          String    @map("video_id")
+  timestampSeconds Int       @default(0) @map("timestamp_seconds")
+  completed        Boolean   @default(false)
+  lastWatchedAt    DateTime  @default(now()) @map("last_watched_at")
+
+  // Relations
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, videoId])
+  @@map("video_progress")
+}
