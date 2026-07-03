@@ -1393,6 +1393,7 @@ function AdminCourseFormPage({ isAdmin }) {
           title: lesson.title,
           contentText: lesson.notes,
           videoUrl: lesson.videoUrl,
+          videoStreamId: lesson.videoStreamId,
           videoDuration: parseDuration(lesson.duration),
           attachmentUrl: lesson.attachmentUrl,
           isPreview: lesson.isPreview,
