@@ -42,11 +42,13 @@ export async function uploadVideo(filePath, title) {
       body: JSON.stringify({ title: videoTitle }),
     });
 
-    const createData = await createResponse.json();
     if (!createResponse.ok) {
-      throw new Error(createData.message || 'Failed to create video slot on Bunny.net');
+      const errorBody = await createResponse.text().catch(() => 'No response body');
+      console.error(`[BunnyStream] Create Video Slot failed. Status: ${createResponse.status}. Response: ${errorBody}`);
+      throw new Error(`Failed to create video slot on Bunny.net. Status: ${createResponse.status}. Details: ${errorBody}`);
     }
 
+    const createData = await createResponse.json();
     const videoId = createData.guid;
     console.log(`[BunnyStream] Video slot created. ID: ${videoId}. Streaming binary to Bunny...`);
 
@@ -63,8 +65,9 @@ export async function uploadVideo(filePath, title) {
     });
 
     if (!uploadResponse.ok) {
-      const uploadData = await uploadResponse.json().catch(() => ({}));
-      throw new Error(uploadData.message || 'Failed to upload video binary to Bunny.net');
+      const errorBody = await uploadResponse.text().catch(() => 'No response body');
+      console.error(`[BunnyStream] Video binary upload failed. Status: ${uploadResponse.status}. Response: ${errorBody}`);
+      throw new Error(`Failed to upload video binary to Bunny.net. Status: ${uploadResponse.status}. Details: ${errorBody}`);
     }
 
     console.log(`[BunnyStream] Video upload successful for ID: ${videoId}`);
