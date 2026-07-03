@@ -54,6 +54,12 @@ export async function uploadVideo(filePath, title) {
 
     // Step 2: Stream the actual video binary file using fs.createReadStream
     const fileStream = fs.createReadStream(filePath);
+    
+    // Attach error listener to prevent unhandled 'error' event server crash
+    fileStream.on('error', (err) => {
+      console.error('[BunnyStream] Local file stream read error:', err.message);
+    });
+
     const uploadResponse = await fetch(`${BASE_URL}/library/${LIBRARY_ID}/videos/${videoId}`, {
       method: 'PUT',
       headers: {
@@ -62,6 +68,7 @@ export async function uploadVideo(filePath, title) {
         'Content-Length': fileSize.toString(),
       },
       body: fileStream,
+      duplex: 'half', // Required in Node.js 18+ and Node.js 24+ when sending a stream body
     });
 
     if (!uploadResponse.ok) {
