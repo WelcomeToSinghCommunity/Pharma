@@ -435,7 +435,26 @@ function CourseCard({ course }) {
 
 // ─── Landing page ─────────────────────────────────────────────────────────────
 function LandingPage() {
-  const featured = publishedCourses.slice(0, 3);
+  const [courses, setCourses] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    getCourses(true)
+      .then(data => {
+        if (Array.isArray(data) && data.length > 0) {
+          setCourses(data);
+        } else {
+          setCourses(publishedCourses);
+        }
+      })
+      .catch(err => {
+        console.warn('Failed to load courses from API, using static fallback:', err);
+        setCourses(publishedCourses);
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  const featured = courses.slice(0, 3);
   return (
     <>
       <section className="hero-section">
@@ -557,13 +576,44 @@ function LandingPage() {
 
 // ─── Catalog ──────────────────────────────────────────────────────────────────
 function CatalogPage() {
-  const [query, setQuery] = useState(''); const [level, setLevel] = useState('All levels'); const [price, setPrice] = useState('Free and paid');
-  const filtered = useMemo(() => publishedCourses.filter((c) => {
-    const q = c.title.toLowerCase().includes(query.toLowerCase());
+  const [courses, setCourses] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [query, setQuery] = useState(''); 
+  const [level, setLevel] = useState('All levels'); 
+  const [price, setPrice] = useState('Free and paid');
+
+  useEffect(() => {
+    getCourses(true)
+      .then(data => {
+        if (Array.isArray(data) && data.length > 0) {
+          setCourses(data);
+        } else {
+          setCourses(publishedCourses);
+        }
+      })
+      .catch(err => {
+        console.warn('Failed to load courses from API, using static fallback:', err);
+        setCourses(publishedCourses);
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  const filtered = useMemo(() => courses.filter((c) => {
+    const titleVal = c.title || '';
+    const q = titleVal.toLowerCase().includes(query.toLowerCase());
     const l = level === 'All levels' || c.level === level;
     const p = price === 'Free and paid' || (price === 'Free' && c.priceInr === 0) || (price === 'Paid' && c.priceInr > 0);
     return q && l && p;
-  }), [level, price, query]);
+  }), [courses, level, price, query]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-mist flex items-center justify-center">
+        <PremiumLoader message="Loading course catalog..." type="catalog" />
+      </div>
+    );
+  }
+
   return (
     <section className="section">
       <div className="flex flex-col justify-between gap-5 md:flex-row md:items-end">
@@ -733,20 +783,43 @@ function DashboardPage({ user }) {
   useEffect(() => {
     if (!user) return;
     setLoading(true);
-    fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/payments/enrollments/${user.id}`)
-      .then(res => res.json())
-      .then(data => {
-        if (Array.isArray(data)) {
-          const dbCourseIds = data.map(e => e.courseId);
-          const list = staticCourses.filter(c => c.priceInr === 0 || dbCourseIds.includes(c.id) || dbCourseIds.includes(c.slug));
-          setEnrolled(list);
-        } else {
-          setEnrolled(staticCourses.filter(c => c.priceInr === 0));
+    
+    // Fetch all courses from the database dynamically first
+    getCourses(true)
+      .then(async (allCourses) => {
+        const coursesPool = (Array.isArray(allCourses) && allCourses.length > 0) ? allCourses : staticCourses;
+        
+        try {
+          const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/payments/enrollments/${user.id}`);
+          const data = await res.json();
+          if (Array.isArray(data)) {
+            const dbCourseIds = data.map(e => e.courseId);
+            const list = coursesPool.filter(c => c.priceInr === 0 || dbCourseIds.includes(c.id) || dbCourseIds.includes(c.slug));
+            setEnrolled(list);
+          } else {
+            setEnrolled(coursesPool.filter(c => c.priceInr === 0));
+          }
+        } catch (err) {
+          console.error('Failed to load user enrollments, using free tier fallback:', err);
+          setEnrolled(coursesPool.filter(c => c.priceInr === 0));
         }
       })
       .catch(err => {
-        console.error('Failed to load user enrollments on dashboard:', err);
-        setEnrolled(staticCourses.filter(c => c.priceInr === 0));
+        console.error('Failed to get dynamic courses for dashboard, using static fallback:', err);
+        fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/payments/enrollments/${user.id}`)
+          .then(res => res.json())
+          .then(data => {
+            if (Array.isArray(data)) {
+              const dbCourseIds = data.map(e => e.courseId);
+              const list = staticCourses.filter(c => c.priceInr === 0 || dbCourseIds.includes(c.id) || dbCourseIds.includes(c.slug));
+              setEnrolled(list);
+            } else {
+              setEnrolled(staticCourses.filter(c => c.priceInr === 0));
+            }
+          })
+          .catch(() => {
+            setEnrolled(staticCourses.filter(c => c.priceInr === 0));
+          });
       })
       .finally(() => setLoading(false));
   }, [user]);
