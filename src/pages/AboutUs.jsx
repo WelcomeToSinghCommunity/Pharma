@@ -165,11 +165,11 @@ export default function AboutUs() {
           <div className="grid md:grid-cols-2 gap-4">
             <div>
               <p className="font-semibold">Email</p>
-              <p className="opacity-90">harideepsingh13@gmail.com</p>
+              <p className="opacity-90">contact@nextgenpharma.org</p>
             </div>
             <div>
               <p className="font-semibold">Phone</p>
-              <p className="opacity-90">+91 XXXXXXXXXX</p>
+              <p className="opacity-90">+91 9630877397</p>
             </div>
             <div className="md:col-span-2">
               <p className="font-semibold">Address</p>

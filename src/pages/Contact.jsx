@@ -27,18 +27,43 @@ export default function Contact() {
     if (Object.keys(errs).length) { setErrors(errs); return; }
     setErrors({});
     setSubmitting(true);
-    if (hasSupabaseConfig) {
-      await supabase.from('contact_submissions').insert({
-        first_name: form.firstName,
-        last_name: form.lastName,
-        email: form.email,
-        phone: form.phone || null,
-        message: form.message,
+    try {
+      const response = await fetch('/api/contact', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(form),
       });
+
+      const result = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to send message. Please try again.');
+      }
+
+      if (hasSupabaseConfig) {
+        try {
+          await supabase.from('contact_submissions').insert({
+            first_name: form.firstName,
+            last_name: form.lastName,
+            email: form.email,
+            phone: form.phone || null,
+            message: form.message,
+          });
+        } catch (dbErr) {
+          console.warn('Failed to save submission to Supabase database:', dbErr);
+        }
+      }
+
+      setSubmitted(true);
+      setForm({ firstName: '', lastName: '', email: '', phone: '', message: '' });
+    } catch (err) {
+      console.error('Contact submission error:', err);
+      setErrors({ submit: err.message || 'An error occurred while sending your message. Please try again later.' });
+    } finally {
+      setSubmitting(false);
     }
-    setSubmitting(false);
-    setSubmitted(true);
-    setForm({ firstName: '', lastName: '', email: '', phone: '', message: '' });
   }
 
   async function handleNewsletter(e) {
@@ -71,17 +96,27 @@ export default function Contact() {
         {/* Left — Contact form */}
         <div className="panel">
           {submitted ? (
-            <div className="py-10 text-center">
-              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-teal/10 text-teal">
-                <Mail size={32} />
+            <div className="py-12 text-center">
+              <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-teal/5">
+                <svg className="checkmark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
+                  <circle className="checkmark-circle" cx="26" cy="26" r="25" fill="none" />
+                  <path className="checkmark-check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8" />
+                </svg>
               </div>
-              <h2 className="mt-4 font-display text-2xl font-bold text-navy">Message sent!</h2>
-              <p className="mt-2 text-slate-600">Thanks for reaching out! We'll get back to you within 24 hours.</p>
-              <button className="btn btn-outline mt-6" onClick={() => setSubmitted(false)}>Send another message</button>
+              <h2 className="font-display text-3xl font-extrabold text-navy">Message Sent!</h2>
+              <p className="mt-3 text-slate-600 max-w-md mx-auto leading-relaxed">
+                Thanks for reaching out! We have received your inquiry. Our support team will review it and get back to you within 24 hours.
+              </p>
+              <button className="btn btn-outline mt-8 px-6 py-2.5 rounded-xl transition-all" onClick={() => setSubmitted(false)}>Send another message</button>
             </div>
           ) : (
             <>
               <h2 className="panel-title">Send us a message</h2>
+              {errors.submit && (
+                <div className="mb-4 rounded-lg bg-red-50/80 backdrop-blur-sm p-4 text-sm text-red-600 dark:bg-red-950/20 dark:text-red-400 border border-red-200/30">
+                  {errors.submit}
+                </div>
+              )}
               <form className="space-y-4" onSubmit={handleSubmit}>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <label>
@@ -146,7 +181,7 @@ export default function Contact() {
                 </span>
                 <div>
                   <p className="font-bold text-navy">Email us at</p>
-                  <a href="mailto:harideepsingh13@gmail.com" className="mt-1 text-sm font-semibold text-teal hover:underline">harideepsingh13@gmail.com</a>
+                  <a href="mailto:contact@nextgenpharma.org" className="mt-1 text-sm font-semibold text-teal hover:underline">contact@nextgenpharma.org</a>
                 </div>
               </div>
             </div>

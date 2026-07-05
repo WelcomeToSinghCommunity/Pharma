@@ -104,8 +104,8 @@ export default function PrivacyPolicy() {
                 If you have questions about this Privacy Policy or your personal information, please contact us:
               </p>
               <div className="bg-slate-50 rounded-lg p-4 mt-3">
-                <p className="text-slate-700"><strong>Email:</strong> harideepsingh13@gmail.com</p>
-                <p className="text-slate-700 mt-1"><strong>Phone:</strong> +91 XXXXXXXXXX</p>
+                <p className="text-slate-700"><strong>Email:</strong> contact@nextgenpharma.org</p>
+                <p className="text-slate-700 mt-1"><strong>Phone:</strong> +91 9630877397</p>
                 <p className="text-slate-700 mt-1"><strong>Address:</strong> Makarba, Ahmedabad 380051, Gujarat</p>
               </div>
             </section>

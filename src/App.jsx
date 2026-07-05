@@ -43,7 +43,7 @@ const ANNOUNCEMENT_CONFIG = {
 };
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
-const adminEmails = ['harideepsingh13@gmail.com', 'kishansingh.nmims@gmail.com'];
+const adminEmails = ['harideepsingh13@gmail.com', 'kishansingh.nmims@gmail.com', 'contact@nextgenpharma.org'];
 
 function useAuth() {
   const [session, setSession] = useState(undefined);
@@ -1734,7 +1734,7 @@ function Footer() {
             </p>
             <div className="footer-contact">
               <p className="flex items-center gap-2"><MapPin size={16} className="text-teal" /> Makarba, Ahmedabad 380051, Gujarat</p>
-              <p className="flex items-center gap-2"><Mail size={16} className="text-teal" /> harideepsingh13@gmail.com</p>
+              <p className="flex items-center gap-2"><Mail size={16} className="text-teal" /> contact@nextgenpharma.org</p>
             </div>
           </div>
           

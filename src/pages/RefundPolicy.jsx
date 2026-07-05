@@ -99,8 +99,8 @@ export default function RefundPolicy() {
                 <p className="text-slate-700 mb-2">
                   For refund-related inquiries or technical support, please contact:
                 </p>
-                <p className="text-slate-700"><strong>Email:</strong> harideepsingh13@gmail.com</p>
-                <p className="text-slate-700 mt-1"><strong>Phone:</strong> +91 XXXXXXXXXX</p>
+                <p className="text-slate-700"><strong>Email:</strong> contact@nextgenpharma.org</p>
+                <p className="text-slate-700 mt-1"><strong>Phone:</strong> +91 9630877397</p>
                 <p className="text-slate-700 mt-1"><strong>Address:</strong> Makarba, Ahmedabad 380051, Gujarat</p>
                 <p className="text-slate-700 mt-1"><strong>Response Time:</strong> Within 24-48 business hours</p>
               </div>

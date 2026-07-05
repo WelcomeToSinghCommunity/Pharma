@@ -262,7 +262,7 @@ export default function CourseInsights() {
               <div className="mt-6 pt-6 border-t border-slate-100">
                 <h3 className="font-semibold text-navy mb-3">Need Help?</h3>
                 <p className="text-sm text-slate-600 mb-2">
-                  Contact us at harideepsingh13@gmail.com
+                  Contact us at contact@nextgenpharma.org
                 </p>
                 <Link to="/refund-policy" className="text-sm text-teal hover:underline">
                   View Refund Policy

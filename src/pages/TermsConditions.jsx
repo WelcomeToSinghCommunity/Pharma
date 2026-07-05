@@ -65,7 +65,7 @@ export default function TermsConditions() {
                 <p><strong>No Refunds:</strong> Due to the nature of digital content and immediate access, we do not offer refunds for course purchases once you have been granted access to the course materials.</p>
                 <p><strong>Technical Issues:</strong> If you experience technical difficulties accessing the course, please contact our support team immediately. We will work to resolve the issue promptly.</p>
                 <p><strong>Exceptional Circumstances:</strong> In rare cases of billing errors or duplicate charges, we will review and process appropriate corrections within 7-10 business days.</p>
-                <p><strong>Support Contact:</strong> For any payment-related issues, please contact us with your transaction ID and registered email at harideepsingh13@gmail.com</p>
+                <p><strong>Support Contact:</strong> For any payment-related issues, please contact us with your transaction ID and registered email at contact@nextgenpharma.org</p>
               </div>
             </section>
 
@@ -117,8 +117,8 @@ export default function TermsConditions() {
             <section className="mb-8">
               <h2 className="text-xl font-bold text-navy mb-4">Contact Information</h2>
               <div className="bg-slate-50 rounded-lg p-4">
-                <p className="text-slate-700"><strong>Email:</strong> harideepsingh13@gmail.com</p>
-                <p className="text-slate-700 mt-1"><strong>Phone:</strong> +91 XXXXXXXXXX</p>
+                <p className="text-slate-700"><strong>Email:</strong> contact@nextgenpharma.org</p>
+                <p className="text-slate-700 mt-1"><strong>Phone:</strong> +91 9630877397</p>
                 <p className="text-slate-700 mt-1"><strong>Address:</strong> Makarba, Ahmedabad 380051, Gujarat</p>
               </div>
             </section>

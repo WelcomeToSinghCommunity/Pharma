@@ -48,7 +48,7 @@ async function checkEnrollment(userId, courseId, adminEmail = 'harideepsingh13@g
       where: { id: userId },
       select: { isAdmin: true, role: true, email: true }
     });
-    const adminEmails = ['harideepsingh13@gmail.com', 'kishansingh.nmims@gmail.com'];
+    const adminEmails = ['harideepsingh13@gmail.com', 'kishansingh.nmims@gmail.com', 'contact@nextgenpharma.org'];
     if (user && (
       user.isAdmin || 
       user.role === 'admin' || 
