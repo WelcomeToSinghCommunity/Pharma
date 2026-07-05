@@ -2,6 +2,14 @@ import { supabase } from '../config/supabaseStorage.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { uploadToR2, deleteFromR2 } from './r2Service.js';
+
+const hasR2Config = !!(
+  process.env.CLOUDFLARE_R2_ACCOUNT_ID &&
+  process.env.CLOUDFLARE_R2_ACCESS_KEY_ID &&
+  process.env.CLOUDFLARE_R2_SECRET_ACCESS_KEY &&
+  process.env.CLOUDFLARE_R2_BUCKET_NAME
+);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -110,6 +118,15 @@ async function uploadThumbnail(file) {
     throw new Error('File size exceeds 5MB limit.');
   }
 
+  if (hasR2Config) {
+    console.log('[R2] Uploading thumbnail to Cloudflare R2');
+    const result = await uploadToR2(file, 'thumbnails');
+    return {
+      path: result.key,
+      url: result.url,
+    };
+  }
+
   return uploadFile('thumbnails', file, '');
 }
 
@@ -124,6 +141,15 @@ async function uploadMaterial(file) {
 
   if (file.size > MAX_DOCUMENT_SIZE) {
     throw new Error('File size exceeds 10MB limit.');
+  }
+
+  if (hasR2Config) {
+    console.log('[R2] Uploading material to Cloudflare R2');
+    const result = await uploadToR2(file, 'materials');
+    return {
+      path: result.key,
+      url: result.url,
+    };
   }
 
   return uploadFile('materials', file, '');
@@ -160,6 +186,20 @@ async function deleteFile(bucket, filePath) {
     }
   } catch (err) {
     console.warn(`Local file delete error: ${err.message}`);
+  }
+
+  if (hasR2Config) {
+    try {
+      let fullKey = filePath;
+      if (!filePath.startsWith(bucket + '/')) {
+        fullKey = `${bucket}/${filePath}`;
+      }
+      console.log(`[R2] Deleting object from R2: ${fullKey}`);
+      await deleteFromR2(fullKey);
+    } catch (err) {
+      console.warn(`R2 delete failed: ${err.message}`);
+    }
+    return true;
   }
 
   if (!supabase) {
