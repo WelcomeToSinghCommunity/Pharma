@@ -437,21 +437,37 @@ function CourseCard({ course }) {
 function LandingPage() {
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({ coursesCount: 4, learnersCount: 0 });
 
   useEffect(() => {
     getCourses(true)
       .then(data => {
         if (Array.isArray(data) && data.length > 0) {
           setCourses(data);
+          setStats(prev => ({ ...prev, coursesCount: data.length }));
         } else {
           setCourses(publishedCourses);
+          setStats(prev => ({ ...prev, coursesCount: publishedCourses.length }));
         }
       })
       .catch(err => {
         console.warn('Failed to load courses from API, using static fallback:', err);
         setCourses(publishedCourses);
+        setStats(prev => ({ ...prev, coursesCount: publishedCourses.length }));
       })
       .finally(() => setLoading(false));
+
+    if (hasSupabaseConfig) {
+      supabase.from('enrollments').select('*', { count: 'exact', head: true })
+        .then(({ count }) => {
+          if (count !== null) {
+            setStats(prev => ({ ...prev, learnersCount: count }));
+          }
+        })
+        .catch(err => {
+          console.warn('Failed to load active learners count:', err);
+        });
+    }
   }, []);
 
   const featured = courses.slice(0, 3);
@@ -486,8 +502,8 @@ function LandingPage() {
       </section>
       <section className="stats-band">
         {[
-          [BookOpen, '4+', 'Specialized Courses'],
-          [Users, '250+', 'Active Learners'],
+          [BookOpen, `${stats.coursesCount}`, 'Specialized Courses'],
+          [Users, `${stats.learnersCount}`, 'Active Learners'],
           [ShieldCheck, '20+', 'Years Industry Experience'],
           [ClipboardCheck, '100%', 'Audit-ready Curriculum']
         ].map(([Icon, v, l]) => (
