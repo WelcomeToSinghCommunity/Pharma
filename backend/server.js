@@ -24,7 +24,13 @@ const httpServer = createServer(app);
 // Socket.IO setup
 const io = new Server(httpServer, {
   cors: {
-    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+    origin: [
+      process.env.FRONTEND_URL || 'http://localhost:5173',
+      'https://nextgenpharma.org',
+      'https://www.nextgenpharma.org',
+      'https://nextgenpharma.vercel.app',
+      'http://localhost:5173'
+    ],
     methods: ['GET', 'POST'],
   },
 });
@@ -62,7 +68,9 @@ const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:3001',
   'http://nextgenpharma.vercel.app',
-  'https://nextgenpharma.vercel.app'
+  'https://nextgenpharma.vercel.app',
+  'https://nextgenpharma.org',
+  'https://www.nextgenpharma.org'
 ];
 
 app.use(cors({
@@ -73,7 +81,9 @@ app.use(cors({
       allowedOrigins.indexOf(origin) !== -1 || 
       origin.startsWith('http://localhost') || 
       origin.startsWith('http://127.0.0.1') ||
-      (origin.includes('nextgenpharma') && origin.endsWith('.vercel.app'))
+      (origin.includes('nextgenpharma') && origin.endsWith('.vercel.app')) ||
+      origin.endsWith('nextgenpharma.org') ||
+      origin.endsWith('.nextgenpharma.org')
     ) {
       return callback(null, true);
     }
