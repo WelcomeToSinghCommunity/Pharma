@@ -76,6 +76,7 @@ function useAuth() {
 }
 
 const publishedCourses = staticCourses.filter((c) => c.published);
+const DEFAULT_THUMBNAIL = 'https://images.unsplash.com/photo-1582719508461-905c673771fd?auto=format&fit=crop&w=600&q=60';
 function formatPrice(p) { return p === 0 ? 'Free' : `₹${p.toLocaleString('en-IN')}`; }
 function getFirstLesson(course) {
   if (!course || !Array.isArray(course.modules) || course.modules.length === 0) return 'intro';
@@ -423,7 +424,7 @@ function SectionTitle({ eyebrow, title, copy }) {
 function CourseCard({ course }) {
   return (
     <article className="course-card">
-      <img src={course.thumbnailUrl || course.thumbnail} alt="" className="h-44 w-full object-cover" />
+      <img src={course.thumbnailUrl || course.thumbnail || DEFAULT_THUMBNAIL} alt="" className="h-44 w-full object-cover" />
       <div className="flex h-full flex-col p-5">
         <div className="mb-3 flex items-center justify-between gap-3">
           <span className="badge">{course.level}</span>
@@ -960,7 +961,7 @@ function CourseDetailPage({ user, isAdmin }) {
           </div>
         </div>
         <aside className="sticky top-24 h-fit rounded border border-slate-200 bg-white p-5 shadow-soft">
-          <img src={course.thumbnailUrl || course.thumbnail} alt="" className="h-44 w-full rounded object-cover" />
+          <img src={course.thumbnailUrl || course.thumbnail || DEFAULT_THUMBNAIL} alt="" className="h-44 w-full rounded object-cover" />
           <div className="mt-5 flex items-center justify-between">
             <span className="text-sm font-semibold text-slate-500">Course price</span>
             <strong className="text-2xl text-navy">{formatPrice(course.priceInr)}</strong>
@@ -1156,7 +1157,7 @@ function DashboardPage({ user }) {
         <div className="mt-8 grid gap-5 lg:grid-cols-2">
           {enrolled.map((c) => (
             <article className="learning-card" key={c.id}>
-              <img src={c.thumbnailUrl || c.thumbnail} alt="" className="h-36 w-full object-cover sm:h-full sm:w-44" />
+              <img src={c.thumbnailUrl || c.thumbnail || DEFAULT_THUMBNAIL} alt="" className="h-36 w-full object-cover sm:h-full sm:w-44" />
               <div className="flex flex-1 flex-col p-5">
                 <h3 className="font-display text-xl font-bold text-navy">{c.title}</h3>
                 <p className="mt-2 text-sm text-slate-600">{c.shortDesc}</p>
@@ -1488,9 +1489,7 @@ function PlansPage() {
       <div className="mt-10 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {courses.map((course) => (
           <article className="pricing-card" key={course.id}>
-            {(course.thumbnailUrl || course.thumbnail) && (
-              <img src={course.thumbnailUrl || course.thumbnail} alt={course.title} className="w-full h-40 object-cover rounded-t-lg" />
-            )}
+            <img src={course.thumbnailUrl || course.thumbnail || DEFAULT_THUMBNAIL} alt={course.title} className="w-full h-40 object-cover rounded-t-lg" />
             <div className="p-6">
               <span className="px-2 py-1 bg-teal/10 text-teal text-xs font-semibold rounded-full">
                 {course.level}
