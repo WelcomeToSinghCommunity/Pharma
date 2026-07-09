@@ -33,6 +33,7 @@ model User {
   enrollments   Enrollment[]
   subscriptions UserSubscription[]
   videoProgress VideoProgress[]
+  reviews       Review[]
 
   @@map("profiles")
 }
@@ -59,6 +60,7 @@ model Course {
   // Relations
   modules         Module[]
   enrollments     Enrollment[]
+  reviews         Review[]
 
   @@index([slug])
   @@index([isPublished])
@@ -348,3 +350,23 @@ model VideoProgress {
   @@unique([userId, videoId])
   @@map("video_progress")
 }
+
+// ============================================
+// COURSE REVIEWS & RATINGS
+// ============================================
+
+model Review {
+  id        String   @id @default(uuid()) @db.Uuid
+  courseId  String   @map("course_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  rating    Int
+  content   String?  @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, courseId])
+  @@map("reviews")
+}
+

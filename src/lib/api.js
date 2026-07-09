@@ -280,3 +280,18 @@ export async function updateAnnouncement(config) {
     body: JSON.stringify(config),
   });
 }
+
+// ============================================
+// REVIEWS & RATINGS
+// ============================================
+
+export async function getCourseReviews(courseId) {
+  return fetchAPI(`/courses/${courseId}/reviews`);
+}
+
+export async function submitCourseReview(courseId, userId, rating, content) {
+  return fetchAPI(`/courses/${courseId}/reviews`, {
+    method: 'POST',
+    body: JSON.stringify({ userId, rating, content }),
+  });
+}

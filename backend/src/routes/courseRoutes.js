@@ -143,6 +143,9 @@ router.get('/', async (req, res) => {
           },
           orderBy: { sortOrder: 'asc' },
         },
+        reviews: {
+          select: { rating: true },
+        },
         _count: {
           select: {
             modules: true,
@@ -153,7 +156,17 @@ router.get('/', async (req, res) => {
       orderBy: { createdAt: 'desc' },
     });
 
-    res.json(courses);
+    const mapped = courses.map(c => {
+      const avg = c.reviews.length > 0 ? Number((c.reviews.reduce((acc, r) => acc + r.rating, 0) / c.reviews.length).toFixed(1)) : 0;
+      const { reviews, ...rest } = c;
+      return {
+        ...rest,
+        rating: avg,
+        reviewCount: c.reviews.length,
+      };
+    });
+
+    res.json(mapped);
   } catch (error) {
     console.error('Get courses error:', error);
     res.status(500).json({ error: 'Failed to fetch courses' });
@@ -177,6 +190,9 @@ router.get('/slug/:slug', async (req, res) => {
           },
           orderBy: { sortOrder: 'asc' },
         },
+        reviews: {
+          select: { rating: true },
+        },
       },
     });
 
@@ -185,7 +201,15 @@ router.get('/slug/:slug', async (req, res) => {
     }
 
     const securedCourse = await secureAndSignCourse(course, userId);
-    res.json(securedCourse);
+    
+    const avg = course.reviews.length > 0 ? Number((course.reviews.reduce((acc, r) => acc + r.rating, 0) / course.reviews.length).toFixed(1)) : 0;
+    const { reviews, ...rest } = securedCourse;
+
+    res.json({
+      ...rest,
+      rating: avg,
+      reviewCount: course.reviews.length,
+    });
   } catch (error) {
     console.error('Get course by slug error:', error);
     res.status(500).json({ error: 'Failed to fetch course' });
@@ -214,6 +238,9 @@ router.get('/:id', async (req, res) => {
             },
             orderBy: { sortOrder: 'asc' },
           },
+          reviews: {
+            select: { rating: true },
+          },
         },
       });
     } else {
@@ -228,6 +255,9 @@ router.get('/:id', async (req, res) => {
             },
             orderBy: { sortOrder: 'asc' },
           },
+          reviews: {
+            select: { rating: true },
+          },
         },
       });
     }
@@ -237,7 +267,15 @@ router.get('/:id', async (req, res) => {
     }
 
     const securedCourse = await secureAndSignCourse(course, userId);
-    res.json(securedCourse);
+    
+    const avg = course.reviews.length > 0 ? Number((course.reviews.reduce((acc, r) => acc + r.rating, 0) / course.reviews.length).toFixed(1)) : 0;
+    const { reviews, ...rest } = securedCourse;
+
+    res.json({
+      ...rest,
+      rating: avg,
+      reviewCount: course.reviews.length,
+    });
   } catch (error) {
     console.error('Get course error:', error);
     res.status(500).json({ error: 'Failed to fetch course' });
@@ -723,6 +761,106 @@ router.delete('/lessons/:id', async (req, res) => {
   } catch (error) {
     console.error('Delete lesson error:', error);
     res.status(500).json({ error: 'Failed to delete lesson' });
+  }
+async function resolveCourseId(idOrSlug) {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (uuidRegex.test(idOrSlug)) {
+    return idOrSlug;
+  }
+  const course = await prisma.course.findUnique({
+    where: { slug: idOrSlug },
+    select: { id: true }
+  });
+  return course ? course.id : null;
+}
+
+// Get course reviews
+router.get('/:id/reviews', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const courseId = await resolveCourseId(id);
+    if (!courseId) {
+      return res.status(404).json({ error: 'Course not found' });
+    }
+
+    const reviews = await prisma.review.findMany({
+      where: { courseId },
+      include: {
+        user: {
+          select: {
+            fullName: true,
+            avatarUrl: true,
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    res.json(reviews);
+  } catch (error) {
+    console.error('Get reviews error:', error);
+    res.status(500).json({ error: 'Failed to fetch reviews' });
+  }
+});
+
+// Submit/update a course review
+router.post('/:id/reviews', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { userId, rating, content } = req.body;
+
+    if (!userId || !rating) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    const courseId = await resolveCourseId(id);
+    if (!courseId) {
+      return res.status(404).json({ error: 'Course not found' });
+    }
+
+    // Check enrollment
+    const enrollment = await prisma.enrollment.findUnique({
+      where: {
+        userId_courseId: { userId, courseId }
+      }
+    });
+
+    // Also check if user is admin
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    const isAdmin = user?.isAdmin || false;
+
+    if (!enrollment && !isAdmin) {
+      return res.status(403).json({ error: 'Only enrolled students can submit reviews' });
+    }
+
+    const review = await prisma.review.upsert({
+      where: {
+        userId_courseId: { userId, courseId }
+      },
+      update: {
+        rating: parseInt(rating),
+        content,
+      },
+      create: {
+        userId,
+        courseId,
+        rating: parseInt(rating),
+        content,
+      },
+      include: {
+        user: {
+          select: {
+            fullName: true,
+            avatarUrl: true,
+          }
+        }
+      }
+    });
+
+    res.json(review);
+  } catch (error) {
+    console.error('Submit review error:', error);
+    res.status(500).json({ error: 'Failed to submit review' });
   }
 });
 

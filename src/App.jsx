@@ -14,6 +14,7 @@ import {
   getCourses, getCourseBySlug, getCourseById, createCourse, updateCourse, deleteCourse,
   uploadThumbnail, uploadMaterial, uploadVideo,
   getAnnouncement, updateAnnouncement, getCourseComments,
+  getCourseReviews, submitCourseReview,
 } from './lib/api.js';
 import VideoPlayer from './components/VideoPlayer.jsx';
 import CommentsSection from './components/CommentsSection.jsx';
@@ -430,6 +431,16 @@ function CourseCard({ course }) {
           <span className="badge">{course.level}</span>
           <span className="font-semibold text-teal">{formatPrice(course.priceInr)}</span>
         </div>
+        {course.rating > 0 && (
+          <div className="mb-3 flex items-center gap-1.5 text-amber-500">
+            <span className="flex items-center">
+              {[...Array(5)].map((_, i) => (
+                <Star key={i} size={14} fill={i < Math.round(course.rating) ? "currentColor" : "none"} className={i < Math.round(course.rating) ? "text-amber-500" : "text-slate-300"} />
+              ))}
+            </span>
+            <span className="text-slate-500 text-xs font-semibold">({course.reviewCount})</span>
+          </div>
+        )}
         <h3 className="font-display text-xl font-bold text-navy">{course.title}</h3>
         <p className="mt-2 flex-1 text-sm leading-6 text-slate-600">{course.shortDesc}</p>
         <div className="mt-5 flex items-center justify-between text-sm text-slate-500">
@@ -739,6 +750,46 @@ function CourseDetailPage({ user, isAdmin }) {
   const [activeTab, setActiveTab] = useState('curriculum');
   const [courseComments, setCourseComments] = useState([]);
   const [loadingComments, setLoadingComments] = useState(false);
+  const [reviews, setReviews] = useState([]);
+  const [loadingReviews, setLoadingReviews] = useState(false);
+  const [userRating, setUserRating] = useState(5);
+  const [hoverRating, setHoverRating] = useState(0);
+  const [reviewContent, setReviewContent] = useState('');
+  const [submittingReview, setSubmittingReview] = useState(false);
+
+  useEffect(() => {
+    if (activeTab === 'reviews' && course) {
+      setLoadingReviews(true);
+      getCourseReviews(course.id)
+        .then(data => {
+          if (Array.isArray(data)) setReviews(data);
+          else setReviews([]);
+        })
+        .catch(err => {
+          console.error('Failed to load reviews:', err);
+          setReviews([]);
+        })
+        .finally(() => setLoadingReviews(false));
+    }
+  }, [activeTab, course]);
+
+  const handleReviewSubmit = (e) => {
+    e.preventDefault();
+    if (!user) return;
+    setSubmittingReview(true);
+    submitCourseReview(course.id, user.id, userRating, reviewContent)
+      .then(() => getCourseReviews(course.id))
+      .then(data => {
+        if (Array.isArray(data)) setReviews(data);
+        setReviewContent('');
+        alert('Review submitted successfully!');
+      })
+      .catch(err => {
+        console.error('Failed to submit review:', err);
+        alert(err.message || 'Failed to submit review');
+      })
+      .finally(() => setSubmittingReview(false));
+  };
 
   useEffect(() => {
     if (activeTab === 'qa' && course) {
@@ -859,6 +910,12 @@ function CourseDetailPage({ user, isAdmin }) {
               >
                 Community Q&A
               </button>
+              <button 
+                onClick={() => setActiveTab('reviews')}
+                className={`pb-3 border-b-2 transition-all focus:outline-none ${activeTab === 'reviews' ? 'border-teal text-teal' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+              >
+                Reviews ({course.reviewCount || 0})
+              </button>
             </div>
 
             {activeTab === 'curriculum' ? (
@@ -896,7 +953,7 @@ function CourseDetailPage({ user, isAdmin }) {
                   </details>
                 ))}
               </div>
-            ) : (
+            ) : activeTab === 'qa' ? (
               <div className="space-y-4">
                 {loadingComments ? (
                   <div className="text-center py-10 text-slate-500 font-medium">Loading discussions...</div>
@@ -942,6 +999,110 @@ function CourseDetailPage({ user, isAdmin }) {
                                   </div>
                                 ))}
                               </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-6 text-left">
+                {/* Review Header Stats */}
+                <div className="flex items-center gap-6 rounded-xl border border-slate-200/80 bg-white p-6 shadow-soft">
+                  <div className="text-center">
+                    <strong className="text-4xl font-extrabold text-navy">{course.rating || '0.0'}</strong>
+                    <div className="mt-1 flex justify-center text-amber-500">
+                      {[...Array(5)].map((_, i) => (
+                        <Star key={i} size={18} fill={i < Math.round(course.rating || 0) ? "currentColor" : "none"} className={i < Math.round(course.rating || 0) ? "text-amber-500" : "text-slate-300"} />
+                      ))}
+                    </div>
+                    <span className="mt-1.5 block text-xs text-slate-500 font-medium">Course Rating</span>
+                  </div>
+                  <div className="h-16 w-px bg-slate-200" />
+                  <div>
+                    <h3 className="font-bold text-navy text-lg">{course.reviewCount || 0} student reviews</h3>
+                    <p className="text-sm text-slate-500 mt-1 leading-relaxed">Hear from learners about their training experience and certification outcomes.</p>
+                  </div>
+                </div>
+
+                {/* Submission Form (Only if enrolled) */}
+                {isEnrolled && user && (
+                  <form onSubmit={handleReviewSubmit} className="rounded-xl border border-slate-200/80 bg-white p-6 shadow-soft space-y-4">
+                    <h3 className="font-bold text-navy text-lg">Leave a Review</h3>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Rating</label>
+                      <div className="flex items-center gap-1">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <button
+                            type="button"
+                            key={star}
+                            onClick={() => setUserRating(star)}
+                            onMouseEnter={() => setHoverRating(star)}
+                            onMouseLeave={() => setHoverRating(0)}
+                            className="text-amber-500 hover:scale-110 transition-transform focus:outline-none"
+                          >
+                            <Star
+                              size={24}
+                              fill={(hoverRating || userRating) >= star ? "currentColor" : "none"}
+                              className={(hoverRating || userRating) >= star ? "text-amber-500" : "text-slate-300"}
+                            />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <label htmlFor="reviewContent" className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Write your feedback</label>
+                      <textarea
+                        id="reviewContent"
+                        rows={4}
+                        placeholder="Tell us what you liked, what you learned, or how we can improve this training course..."
+                        value={reviewContent}
+                        onChange={(e) => setReviewContent(e.target.value)}
+                        className="w-full p-4 border border-slate-200 rounded-lg focus:ring-2 focus:ring-teal/30 focus:border-teal outline-none transition-all resize-y text-slate-700 text-sm"
+                        required
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={submittingReview}
+                      className="btn btn-primary px-5 py-2"
+                    >
+                      {submittingReview ? 'Submitting...' : 'Submit Review'}
+                    </button>
+                  </form>
+                )}
+
+                {/* Reviews List */}
+                {loadingReviews ? (
+                  <div className="text-center py-10 text-slate-500 font-medium">Loading reviews...</div>
+                ) : reviews.length === 0 ? (
+                  <div className="empty-state text-center py-12">
+                    <Star size={36} className="mx-auto text-slate-300 mb-3" />
+                    <p className="font-semibold text-slate-700">No reviews yet</p>
+                    <p className="text-sm text-slate-500 mt-1">Be the first to rate and share your review for this course!</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {reviews.map((review) => (
+                      <div key={review.id} className="bg-white rounded-xl border border-slate-200/80 p-5 shadow-soft">
+                        <div className="flex items-start gap-3">
+                          <div className="h-9 w-9 rounded-full bg-teal/10 text-teal font-bold flex items-center justify-center text-sm shrink-0">
+                            {review.user?.fullName?.charAt(0) || 'L'}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-3">
+                              <span className="font-bold text-navy text-sm">{review.user?.fullName || 'Learner'}</span>
+                              <span className="text-[11px] text-slate-400 font-semibold">{new Date(review.createdAt).toLocaleDateString()}</span>
+                            </div>
+                            <div className="mt-1 flex text-amber-500">
+                              {[...Array(5)].map((_, i) => (
+                                <Star key={i} size={12} fill={i < review.rating ? "currentColor" : "none"} className={i < review.rating ? "text-amber-500" : "text-slate-300"} />
+                              ))}
+                            </div>
+                            {review.content && (
+                              <p className="mt-3 text-slate-700 text-sm leading-relaxed">{review.content}</p>
                             )}
                           </div>
                         </div>
@@ -1199,6 +1360,37 @@ function CoursePlayerPage({ user }) {
   const [loading, setLoading] = useState(true);
   const [isEnrolled, setIsEnrolled] = useState(false);
   const [completed, setCompleted] = useState([]);
+  const [playerTab, setPlayerTab] = useState('notes');
+  const [personalNote, setPersonalNote] = useState('');
+
+  // Load personal notes for active lesson
+  useEffect(() => {
+    if (courseId && lessonId) {
+      const saved = localStorage.getItem(`note_${courseId}_${lessonId}`) || '';
+      setPersonalNote(saved);
+    }
+  }, [courseId, lessonId]);
+
+  const handleNoteChange = (e) => {
+    const value = e.target.value;
+    setPersonalNote(value);
+    localStorage.setItem(`note_${courseId}_${lessonId}`, value);
+  };
+
+  const downloadPersonalNotes = () => {
+    if (!personalNote.trim()) {
+      alert('Notepad is empty! Type some notes first.');
+      return;
+    }
+    const header = `NEXTGEN PHARMA ACADEMY - STUDY NOTES\nCourse: ${course.title}\nLesson: ${currentLesson?.title || 'Lesson'}\nDate: ${new Date().toLocaleDateString()}\n--------------------------------------------------\n\n`;
+    const blob = new Blob([header + personalNote], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${course.title.replace(/\s+/g, '_')}_${(currentLesson?.title || 'Lesson').replace(/\s+/g, '_')}_Notes.txt`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
 
   // Load course details from database or static fallback
   useEffect(() => {
@@ -1407,31 +1599,88 @@ function CoursePlayerPage({ user }) {
             )}
             <div className="mt-7 flex flex-col justify-between gap-4 md:flex-row md:items-center">
               <div><span className="badge">{currentLesson.moduleTitle}</span><h2 className="mt-3 font-display text-3xl font-bold text-navy">{currentLesson.title}</h2></div>
-              <div className="flex flex-wrap gap-2">
-                {currentLesson.attachmentUrl && (
-                  isEnrolled ? (
-                    <a className="btn btn-outline" href={currentLesson.attachmentUrl} target="_blank" rel="noreferrer"><Download size={16} /> Download notes</a>
-                  ) : (
-                    <button className="btn btn-outline opacity-60 cursor-not-allowed" onClick={() => alert('🔒 Note download is reserved for enrolled students. Please purchase the course to access.')}><Download size={16} /> Download notes (Locked)</button>
-                  )
-                )}
-                {hasVideo && (
-                  isEnrolled ? (
-                    <a className="btn btn-outline" href={currentLesson.videoUrl} download target="_blank" rel="noreferrer"><Download size={16} /> Download video</a>
-                  ) : (
-                    <button className="btn btn-outline opacity-60 cursor-not-allowed" onClick={() => alert('🔒 Video download is reserved for enrolled students. Please purchase the course to access.')}><Download size={16} /> Download video (Locked)</button>
-                  )
-                )}
-              </div>
             </div>
-            <div className="lesson-notes mt-5">
-              {currentLesson.notes ? (
-                currentLesson.notes.split('\n').map((p, i) => p.trim() ? <p key={i} className="mb-4 text-slate-700 leading-relaxed">{p}</p> : null)
-              ) : (
-                <p className="text-slate-400 italic">No notes available for this lesson.</p>
+
+            {/* Workspace Tabs */}
+            <div className="mt-6 flex border-b border-slate-200 gap-6 text-sm font-semibold">
+              <button 
+                onClick={() => setPlayerTab('notes')}
+                className={`pb-3 border-b-2 transition-all focus:outline-none ${playerTab === 'notes' ? 'border-teal text-teal' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+              >
+                Lesson Material
+              </button>
+              <button 
+                onClick={() => setPlayerTab('notepad')}
+                className={`pb-3 border-b-2 transition-all focus:outline-none ${playerTab === 'notepad' ? 'border-teal text-teal' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+              >
+                Personal Notepad
+              </button>
+              {isEnrolled && (
+                <button 
+                  onClick={() => setPlayerTab('discussion')}
+                  className={`pb-3 border-b-2 transition-all focus:outline-none ${playerTab === 'discussion' ? 'border-teal text-teal' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                >
+                  Discussion & Q&A
+                </button>
               )}
             </div>
-            <div className="mt-8 flex items-center justify-between gap-3">
+
+            {/* Tab Contents */}
+            <div className="mt-6">
+              {playerTab === 'notes' ? (
+                <>
+                  <div className="flex flex-wrap gap-2 mb-5">
+                    {currentLesson.attachmentUrl && (
+                      isEnrolled ? (
+                        <a className="btn btn-outline" href={currentLesson.attachmentUrl} target="_blank" rel="noreferrer"><Download size={16} /> Download notes</a>
+                      ) : (
+                        <button className="btn btn-outline opacity-60 cursor-not-allowed" onClick={() => alert('🔒 Note download is reserved for enrolled students. Please purchase the course to access.')}><Download size={16} /> Download notes (Locked)</button>
+                      )
+                    )}
+                    {hasVideo && (
+                      isEnrolled ? (
+                        <a className="btn btn-outline" href={currentLesson.videoUrl} download target="_blank" rel="noreferrer"><Download size={16} /> Download video</a>
+                      ) : (
+                        <button className="btn btn-outline opacity-60 cursor-not-allowed" onClick={() => alert('🔒 Video download is reserved for enrolled students. Please purchase the course to access.')}><Download size={16} /> Download video (Locked)</button>
+                      )
+                    )}
+                  </div>
+                  <div className="lesson-notes text-left">
+                    {currentLesson.notes ? (
+                      currentLesson.notes.split('\n').map((p, i) => p.trim() ? <p key={i} className="mb-4 text-slate-700 leading-relaxed">{p}</p> : null)
+                    ) : (
+                      <p className="text-slate-400 italic">No notes available for this lesson.</p>
+                    )}
+                  </div>
+                </>
+              ) : playerTab === 'notepad' ? (
+                <div className="space-y-4 text-left">
+                  <div className="flex flex-wrap justify-between items-center gap-3">
+                    <div>
+                      <h3 className="font-bold text-navy text-lg">My Study Notepad</h3>
+                      <p className="text-sm text-slate-500 mt-1">Your notes are private and automatically saved to this browser as you type.</p>
+                    </div>
+                    <button onClick={downloadPersonalNotes} className="btn btn-outline py-2 px-4"><Download size={16} /> Export as .txt</button>
+                  </div>
+                  <textarea
+                    rows={12}
+                    placeholder="Type your personal observations, review findings, or key training summaries here..."
+                    value={personalNote}
+                    onChange={handleNoteChange}
+                    className="w-full p-4 border border-slate-200 rounded-lg focus:ring-2 focus:ring-teal/30 focus:border-teal outline-none transition-all resize-y text-slate-700 text-sm font-sans"
+                  />
+                </div>
+              ) : (
+                isEnrolled && (
+                  <div className="pt-2 text-left">
+                    <CommentsSection lessonId={currentLesson.id} user={user} />
+                  </div>
+                )
+              )}
+            </div>
+
+            {/* Navigation buttons (Always at bottom) */}
+            <div className="mt-10 flex items-center justify-between gap-3 border-t border-slate-100 pt-6">
               <button className="btn btn-outline" disabled={!prevLesson} onClick={() => prevLesson && navigate(`/dashboard/learn/${course.id}/${prevLesson.id}`)}><ArrowLeft size={16} /> Previous</button>
               <span className="text-sm text-slate-400">{currentIndex + 1} / {allLessons.length}</span>
               {nextLesson ? (
@@ -1440,19 +1689,13 @@ function CoursePlayerPage({ user }) {
                 <button className="btn btn-teal" onClick={markComplete}><CheckCircle2 size={16} />{isCompleted(currentLesson.id) ? '✓ Course Complete' : 'Mark Complete'}</button>
               )}
             </div>
+
             {!nextLesson && isCompleted(currentLesson.id) && (
               <div className="mt-6 rounded border border-teal/30 bg-teal/5 p-5 text-center">
                 <CheckCircle2 size={36} className="mx-auto text-teal" />
                 <h3 className="mt-3 font-display text-xl font-bold text-navy">Course Complete!</h3>
                 <p className="mt-2 text-slate-600">You've finished all lessons in this course.</p>
                 <Link className="btn btn-primary mt-4 inline-flex" to="/dashboard">Back to Dashboard</Link>
-              </div>
-            )}
-            
-            {/* Real-time Comments Section */}
-            {isEnrolled && (
-              <div className="mt-10 border-t border-slate-200 pt-8">
-                <CommentsSection lessonId={currentLesson.id} user={user} />
               </div>
             )}
           </>
