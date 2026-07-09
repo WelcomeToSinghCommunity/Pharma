@@ -809,11 +809,11 @@ function CourseDetailPage({ user, isAdmin }) {
     else navigate(`/courses/${course.slug}/insights`);
   }
 
-  function handleLessonClick(lesson, mod, moduleIndex) {
+  function handleLessonClick(lesson, mod, lessonIndex) {
     const isAccessible = lesson.isPreview || isEnrolled;
     if (isAccessible) {
       if (user) {
-        const generatedLessonId = lesson.id || makeLessonId(mod.title, moduleIndex);
+        const generatedLessonId = lesson.id || makeLessonId(mod.title, lessonIndex);
         navigate(`/dashboard/learn/${course.id}/${generatedLessonId}`);
       } else {
         setPreviewLesson({
@@ -858,17 +858,17 @@ function CourseDetailPage({ user, isAdmin }) {
 
             {activeTab === 'curriculum' ? (
               <div className="divide-y divide-slate-200 rounded border border-slate-200 bg-white">
-                {course.modules.map((mod, mi) => (
+                {course.modules && course.modules.map((mod, mi) => (
                   <details key={mod.title} open={mi === 0} className="curriculum-item">
-                    <summary><span>{mod.title}</span><span>{mod.lessons.length} lessons</span></summary>
+                    <summary><span>{mod.title}</span><span>{(mod.lessons || []).length} lessons</span></summary>
                     <div className="space-y-2 p-4">
-                      {mod.lessons.map((lesson, li) => {
+                      {(mod.lessons || []).map((lesson, li) => {
                         const isAccessible = lesson.isPreview || isEnrolled;
                         return (
                           <button
                             className="lesson-row w-full text-left flex items-center justify-between hover:bg-slate-50 transition-colors py-2 px-3 rounded border border-transparent focus:outline-none focus:ring-1 focus:ring-teal"
                             key={lesson.title}
-                            onClick={() => handleLessonClick(lesson, mod, mi)}
+                            onClick={() => handleLessonClick(lesson, mod, li)}
                           >
                             <span className="flex items-center gap-2">
                               {isAccessible ? <Play size={16} className="text-teal" /> : <Lock size={16} className="text-slate-400" />}
@@ -950,7 +950,7 @@ function CourseDetailPage({ user, isAdmin }) {
           <div className="mt-10 grid gap-8 md:grid-cols-2">
             <div>
               <h2 className="font-display text-2xl font-bold text-navy">What You'll Learn</h2>
-              <ul className="mt-4 space-y-3">{course.whatYouWillLearn.map((item) => (<li className="flex gap-3 text-slate-700" key={item}><CheckCircle2 className="mt-0.5 shrink-0 text-teal" size={18} /><span>{item}</span></li>))}</ul>
+              <ul className="mt-4 space-y-3">{(course.whatYouWillLearn || []).map((item) => (<li className="flex gap-3 text-slate-700" key={item}><CheckCircle2 className="mt-0.5 shrink-0 text-teal" size={18} /><span>{item}</span></li>))}</ul>
             </div>
             <div><h2 className="font-display text-2xl font-bold text-navy">About this Course</h2><p className="mt-4 leading-8 text-slate-600">{course.description}</p></div>
           </div>
@@ -1248,9 +1248,9 @@ function CoursePlayerPage({ user }) {
 
   // Derive flat list of lessons and the current active lesson
   const allLessons = useMemo(() => {
-    if (!course) return [];
+    if (!course || !Array.isArray(course.modules)) return [];
     return course.modules.flatMap((mod, mi) =>
-      mod.lessons.map((lesson, li) => {
+      (mod.lessons || []).map((lesson, li) => {
         const generatedId = makeLessonId(mod.title, li);
         return {
           ...lesson,
@@ -1324,13 +1324,13 @@ function CoursePlayerPage({ user }) {
           <p className="progress-stats">{completed.length} of {allLessons.length} lessons completed</p>
         </div>
         <div className="sidebar-modules-list">
-          {course.modules.map((mod, modIdx) => (
+          {course.modules && course.modules.map((mod, modIdx) => (
             <div key={mod.title} className="sidebar-module-section">
               <h2 className="sidebar-module-title">
                 <span className="module-num">M{modIdx + 1}</span> {mod.title}
               </h2>
               <div className="sidebar-lessons-list">
-                {mod.lessons.map((lesson, li) => { 
+                {(mod.lessons || []).map((lesson, li) => { 
                   const id = lesson.id || makeLessonId(mod.title, li); 
                   const done = isCompleted(id); 
                   return (
@@ -1683,6 +1683,7 @@ function AdminCourseFormPage({ isAdmin }) {
   const [priceInr, setPriceInr] = useState(999);
   const [thumbnail, setThumbnail] = useState('');
   const [published, setPublished] = useState(false);
+  const [whatYouWillLearn, setWhatYouWillLearn] = useState([]);
   const [modules, setModules] = useState([{ title: '', lessons: [{ title: '', duration: '10 min', videoUrl: '', videoStreamId: '', attachmentUrl: '', isPreview: false, notes: '' }] }]);
   const [toast, setToast] = useState('');
   const [saving, setSaving] = useState(false);
@@ -1702,6 +1703,7 @@ function AdminCourseFormPage({ isAdmin }) {
           setPriceInr(course.priceInr);
           setThumbnail(course.thumbnailUrl || '');
           setPublished(course.isPublished);
+          setWhatYouWillLearn(course.whatYouWillLearn || []);
           setModules(course.modules.map(m => ({
             title: m.title,
             lessons: m.lessons.map(l => ({
@@ -1728,6 +1730,7 @@ function AdminCourseFormPage({ isAdmin }) {
             setPriceInr(staticCourse.priceInr);
             setThumbnail(staticCourse.thumbnail || '');
             setPublished(staticCourse.published);
+            setWhatYouWillLearn(staticCourse.whatYouWillLearn || []);
             setModules(staticCourse.modules.map(m => ({
               title: m.title,
               lessons: m.lessons.map(l => ({
@@ -1820,7 +1823,7 @@ function AdminCourseFormPage({ isAdmin }) {
       priceInr: Number(priceInr),
       thumbnailUrl: thumbnail,
       isPublished: published,
-      whatYouWillLearn: [],
+      whatYouWillLearn: whatYouWillLearn,
       modules: modules.map((mod, modIndex) => ({
         title: mod.title,
         sortOrder: modIndex,

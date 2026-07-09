@@ -386,37 +386,58 @@ router.put('/:id', async (req, res) => {
     // Handle modules update if provided
     if (modules) {
       console.log('Updating modules for course:', realId);
-      // Delete existing modules and lessons
-      await prisma.module.deleteMany({ where: { courseId: realId } });
+      
+      const moduleData = [];
+      const lessonData = [];
 
-      // Create new modules and lessons
       for (const [modIndex, mod] of modules.entries()) {
-        const createdModule = await prisma.module.create({
-          data: {
-            courseId: realId,
-            title: mod.title,
-            sortOrder: modIndex,
-          },
+        const moduleId = crypto.randomUUID();
+        moduleData.push({
+          id: moduleId,
+          courseId: realId,
+          title: mod.title,
+          sortOrder: modIndex,
         });
 
         if (mod.lessons) {
           for (const [lessonIndex, lesson] of mod.lessons.entries()) {
-            await prisma.lesson.create({
-              data: {
-                moduleId: createdModule.id,
-                title: lesson.title,
-                contentText: lesson.contentText,
-                videoUrl: lesson.videoUrl,
-                videoStreamId: lesson.videoStreamId,
-                videoDuration: lesson.videoDuration,
-                attachmentUrl: lesson.attachmentUrl,
-                isPreview: lesson.isPreview || false,
-                sortOrder: lessonIndex,
-              },
+            lessonData.push({
+              id: crypto.randomUUID(),
+              moduleId: moduleId,
+              title: lesson.title,
+              contentText: lesson.contentText,
+              videoUrl: lesson.videoUrl,
+              videoStreamId: lesson.videoStreamId,
+              videoDuration: lesson.videoDuration,
+              attachmentUrl: lesson.attachmentUrl,
+              isPreview: lesson.isPreview || false,
+              sortOrder: lessonIndex,
             });
           }
         }
       }
+
+      // Execute atomic transaction for deleting and recreating modules/lessons
+      await prisma.$transaction([
+        prisma.lesson.deleteMany({
+          where: {
+            module: {
+              courseId: realId
+            }
+          }
+        }),
+        prisma.module.deleteMany({
+          where: {
+            courseId: realId
+          }
+        }),
+        prisma.module.createMany({
+          data: moduleData
+        }),
+        prisma.lesson.createMany({
+          data: lessonData
+        })
+      ]);
     }
 
     // Fetch updated course with relations

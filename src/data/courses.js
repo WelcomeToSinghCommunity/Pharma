@@ -285,22 +285,25 @@ export function getCourseBySlug(slug) {
 }
 
 export function getLessonCount(course) {
-  return course.modules.reduce((total, module) => total + module.lessons.length, 0);
+  if (!course || !Array.isArray(course.modules)) return 0;
+  return course.modules.reduce((total, module) => total + (Array.isArray(module.lessons) ? module.lessons.length : 0), 0);
 }
 
 export function getModuleCount(course) {
+  if (!course || !Array.isArray(course.modules)) return 0;
   return course.modules.length;
 }
 
 export function getLessonById(course, lessonId) {
+  if (!course || !Array.isArray(course.modules)) return null;
   const allLessons = course.modules.flatMap((module, moduleIndex) =>
-    module.lessons.map((lessonItem, lessonIndex) => ({
+    Array.isArray(module.lessons) ? module.lessons.map((lessonItem, lessonIndex) => ({
       ...lessonItem,
       id: lessonItem.id || makeLessonId(module.title, lessonIndex),
       moduleTitle: module.title,
       moduleIndex,
       lessonIndex,
-    })),
+    })) : []
   );
 
   return allLessons.find((lessonItem) => lessonItem.id === lessonId) ?? allLessons[0];
