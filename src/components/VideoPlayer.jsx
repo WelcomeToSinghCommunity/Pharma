@@ -188,7 +188,9 @@ export default function VideoPlayer({ src, videoStreamId, courseId, videoId, tit
 
   const isBunnyVideo = !!videoStreamId || src?.includes('mediadelivery.net') || src?.includes('b-cdn.net');
   const bunnyLibraryId = '696606';
-  const bunnyVideoId = videoStreamId || src?.split('/embed/')[1]?.split('?')[0] || src?.split('b-cdn.net/')[1]?.split('/')[0];
+  const bunnyVideoId = videoStreamId || 
+    (src && src.includes('/embed/') ? src.split('/embed/')[1]?.split('?')[0] : null) || 
+    (src && src.includes('b-cdn.net/') ? src.split('b-cdn.net/')[1]?.split('/')[0] : null);
 
   if (isBunnyVideo && bunnyVideoId) {
     const iframeSrc = `https://iframe.mediadelivery.net/embed/${bunnyLibraryId}/${bunnyVideoId}?autoplay=false${resumeFrom ? `&t=${resumeFrom}` : ''}`;

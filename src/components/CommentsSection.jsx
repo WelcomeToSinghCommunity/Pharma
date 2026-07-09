@@ -181,14 +181,14 @@ export default function CommentsSection({ lessonId, user }) {
             <div key={comment.id} className="rounded-lg bg-slate-50 p-4">
               <div className="flex items-start gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-teal text-white font-semibold">
-                  {comment.user.fullName?.charAt(0) || 'U'}
+                  {comment.user?.fullName?.charAt(0) || 'U'}
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
                     <span className="font-semibold text-navy">
-                      {comment.user.fullName || 'User'}
+                      {comment.user?.fullName || 'User'}
                     </span>
-                    {comment.user.isInstructor && (
+                    {comment.user?.isInstructor && (
                       <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">
                         Instructor
                       </span>
@@ -197,7 +197,7 @@ export default function CommentsSection({ lessonId, user }) {
                       <Pin size={14} className="text-amber-600" />
                     )}
                     <span className="text-xs text-slate-400">
-                      {new Date(comment.createdAt).toLocaleDateString()}
+                      {comment.createdAt ? new Date(comment.createdAt).toLocaleDateString() : ''}
                     </span>
                   </div>
                   <p className="mt-1 text-slate-700">{comment.content}</p>
@@ -210,7 +210,7 @@ export default function CommentsSection({ lessonId, user }) {
                       }`}
                     >
                       <ThumbsUp size={16} />
-                      {comment._count.likes}
+                      {comment._count?.likes || 0}
                     </button>
                     <button
                       onClick={() => setReplyingTo(comment)}
@@ -222,25 +222,25 @@ export default function CommentsSection({ lessonId, user }) {
                   </div>
 
                   {/* Replies */}
-                  {comment.replies.length > 0 && (
+                  {Array.isArray(comment.replies) && comment.replies.length > 0 && (
                     <div className="mt-4 space-y-3 pl-4 border-l-2 border-slate-200">
                       {comment.replies.map((reply) => (
                         <div key={reply.id} className="flex items-start gap-2">
                           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-200 text-slate-600 text-sm font-semibold">
-                            {reply.user.fullName?.charAt(0) || 'U'}
+                            {reply.user?.fullName?.charAt(0) || 'U'}
                           </div>
                           <div>
                             <div className="flex items-center gap-2">
                               <span className="font-semibold text-sm text-navy">
-                                {reply.user.fullName || 'User'}
+                                {reply.user?.fullName || 'User'}
                               </span>
-                              {reply.user.isInstructor && (
+                              {reply.user?.isInstructor && (
                                 <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">
                                   Instructor
                                 </span>
                               )}
                               <span className="text-xs text-slate-400">
-                                {new Date(reply.createdAt).toLocaleDateString()}
+                                {reply.createdAt ? new Date(reply.createdAt).toLocaleDateString() : ''}
                               </span>
                             </div>
                             <p className="text-sm text-slate-700">{reply.content}</p>

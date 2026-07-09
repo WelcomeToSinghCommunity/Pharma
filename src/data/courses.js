@@ -310,5 +310,6 @@ export function getLessonById(course, lessonId) {
 }
 
 export function makeLessonId(moduleTitle, lessonIndex) {
-  return `${moduleTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${lessonIndex}`;
+  const titleStr = typeof moduleTitle === 'string' ? moduleTitle : String(moduleTitle || 'module');
+  return `${titleStr.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${lessonIndex}`;
 }

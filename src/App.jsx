@@ -78,9 +78,13 @@ function useAuth() {
 const publishedCourses = staticCourses.filter((c) => c.published);
 function formatPrice(p) { return p === 0 ? 'Free' : `₹${p.toLocaleString('en-IN')}`; }
 function getFirstLesson(course) {
-  if (!course || !course.modules || course.modules.length === 0) return 'intro';
+  if (!course || !Array.isArray(course.modules) || course.modules.length === 0) return 'intro';
   const firstModule = course.modules[0];
-  return makeLessonId(firstModule.title, 0);
+  if (!firstModule || !Array.isArray(firstModule.lessons) || firstModule.lessons.length === 0) {
+    return 'intro';
+  }
+  const firstLesson = firstModule.lessons[0];
+  return firstLesson.id || makeLessonId(firstModule.title || 'module', 0);
 }
 
 function RequireAuth({ user, loading, children }) {
@@ -1316,10 +1320,10 @@ function CoursePlayerPage({ user }) {
         <div className="sidebar-progress-card">
           <div className="progress-labels">
             <span>Course Progress</span>
-            <strong>{Math.round((completed.length / allLessons.length) * 100)}%</strong>
+            <strong>{allLessons.length > 0 ? Math.round((completed.length / allLessons.length) * 100) : 0}%</strong>
           </div>
           <div className="progress-track">
-            <span style={{ width: `${(completed.length / allLessons.length) * 100}%` }} />
+            <span style={{ width: `${allLessons.length > 0 ? (completed.length / allLessons.length) * 100 : 0}%` }} />
           </div>
           <p className="progress-stats">{completed.length} of {allLessons.length} lessons completed</p>
         </div>
