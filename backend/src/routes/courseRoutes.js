@@ -762,6 +762,8 @@ router.delete('/lessons/:id', async (req, res) => {
     console.error('Delete lesson error:', error);
     res.status(500).json({ error: 'Failed to delete lesson' });
   }
+});
+
 async function resolveCourseId(idOrSlug) {
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   if (uuidRegex.test(idOrSlug)) {
