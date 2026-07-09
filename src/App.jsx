@@ -4,7 +4,7 @@ import {
   ArrowLeft, BarChart3, BookOpen, CheckCircle2, ChevronRight, ClipboardCheck,
   Download, Gift, LayoutDashboard, Lock, LogOut, Mail, MapPin, Menu, MessageSquare,
   Phone, Play, Plus, Radio, Search, ShieldCheck, UploadCloud, UserRound, Users, Video, X,
-  Sun, Moon, Star, Linkedin, Megaphone,
+  Sun, Moon, Star, Linkedin, Megaphone, Award,
 } from 'lucide-react';
 import {
   courses as staticCourses, getCourseBySlug as getCourseBySlugStatic, getLessonById, getLessonCount, getModuleCount, makeLessonId,
