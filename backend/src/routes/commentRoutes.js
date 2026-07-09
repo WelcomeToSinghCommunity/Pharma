@@ -7,6 +7,71 @@ const router = express.Router();
 // COMMENTS
 // ============================================
 
+// Get comments for a course (recent public discussions)
+router.get('/course/:courseId', async (req, res) => {
+  try {
+    const { courseId } = req.params;
+    const { limit = 10 } = req.query;
+
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    
+    // Resolve courseId if it is a slug
+    let realCourseId = courseId;
+    if (!uuidRegex.test(courseId)) {
+      const course = await prisma.course.findUnique({
+        where: { slug: courseId },
+        select: { id: true }
+      });
+      if (!course) return res.status(404).json({ error: 'Course not found' });
+      realCourseId = course.id;
+    }
+
+    const comments = await prisma.comment.findMany({
+      where: {
+        lesson: {
+          module: {
+            courseId: realCourseId
+          }
+        }
+      },
+      include: {
+        user: {
+          select: {
+            fullName: true,
+            avatarUrl: true,
+            isInstructor: true,
+          }
+        },
+        lesson: {
+          select: {
+            id: true,
+            title: true
+          }
+        },
+        replies: {
+          include: {
+            user: {
+              select: {
+                fullName: true,
+                avatarUrl: true,
+                isInstructor: true
+              }
+            }
+          },
+          orderBy: { createdAt: 'asc' }
+        }
+      },
+      orderBy: { createdAt: 'desc' },
+      take: parseInt(limit),
+    });
+
+    res.json(comments);
+  } catch (error) {
+    console.error('Get course comments error:', error);
+    res.status(500).json({ error: 'Failed to fetch course comments' });
+  }
+});
+
 // Get comments for a lesson
 router.get('/lesson/:lessonId', async (req, res) => {
   try {

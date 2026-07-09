@@ -89,9 +89,9 @@ export default function CourseInsights() {
             {/* Course Overview */}
             <div className="bg-white rounded-2xl shadow-sm p-8">
               <div className="flex items-start gap-4 mb-6">
-                {course.thumbnailUrl && (
+                {(course.thumbnailUrl || course.thumbnail) && (
                   <img 
-                    src={course.thumbnailUrl} 
+                    src={course.thumbnailUrl || course.thumbnail} 
                     alt={course.title} 
                     className="w-32 h-32 object-cover rounded-lg flex-shrink-0"
                   />

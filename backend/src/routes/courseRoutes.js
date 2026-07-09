@@ -107,6 +107,8 @@ async function secureAndSignCourse(course, userId) {
         // Redact locked content details to prevent direct access
         lesson.videoUrl = null;
         lesson.videoStreamId = null;
+        lesson.contentText = "This content is locked. Please enroll in the course to unlock the full lesson notes.";
+        lesson.attachmentUrl = null;
       }
     }
   }

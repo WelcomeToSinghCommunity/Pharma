@@ -181,8 +181,8 @@ export default function CheckoutPage({ user }) {
           <div className="lg:col-span-2 space-y-6">
             {/* Course Preview */}
             <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
-              {course.thumbnailUrl && (
-                <img src={course.thumbnailUrl} alt={course.title} className="w-full h-64 object-cover" />
+              {(course.thumbnailUrl || course.thumbnail) && (
+                <img src={course.thumbnailUrl || course.thumbnail} alt={course.title} className="w-full h-64 object-cover" />
               )}
               <div className="p-6">
                 <div className="flex items-center gap-2 mb-3">

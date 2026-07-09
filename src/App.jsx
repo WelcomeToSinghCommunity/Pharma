@@ -13,9 +13,11 @@ import { supabase, hasSupabaseConfig } from './lib/supabase.js';
 import {
   getCourses, getCourseBySlug, getCourseById, createCourse, updateCourse, deleteCourse,
   uploadThumbnail, uploadMaterial, uploadVideo,
-  getAnnouncement, updateAnnouncement,
+  getAnnouncement, updateAnnouncement, getCourseComments,
 } from './lib/api.js';
 import VideoPlayer from './components/VideoPlayer.jsx';
+import CommentsSection from './components/CommentsSection.jsx';
+import { quizzes } from './data/quizzes.js';
 import CheckoutPage from './components/CheckoutPage.jsx';
 import CourseInsights from './components/CourseInsights.jsx';
 import PrivacyPolicy from './pages/PrivacyPolicy.jsx';
@@ -75,7 +77,11 @@ function useAuth() {
 
 const publishedCourses = staticCourses.filter((c) => c.published);
 function formatPrice(p) { return p === 0 ? 'Free' : `₹${p.toLocaleString('en-IN')}`; }
-function getFirstLesson(course) { return makeLessonId(course.modules[0].title, 0); }
+function getFirstLesson(course) {
+  if (!course || !course.modules || course.modules.length === 0) return 'intro';
+  const firstModule = course.modules[0];
+  return makeLessonId(firstModule.title, 0);
+}
 
 function RequireAuth({ user, loading, children }) {
   if (loading) return <PremiumLoader message="Verifying authentication session..." type="auth" />;
@@ -413,7 +419,7 @@ function SectionTitle({ eyebrow, title, copy }) {
 function CourseCard({ course }) {
   return (
     <article className="course-card">
-      <img src={course.thumbnail} alt="" className="h-44 w-full object-cover" />
+      <img src={course.thumbnailUrl || course.thumbnail} alt="" className="h-44 w-full object-cover" />
       <div className="flex h-full flex-col p-5">
         <div className="mb-3 flex items-center justify-between gap-3">
           <span className="badge">{course.level}</span>
@@ -470,7 +476,38 @@ function LandingPage() {
     }
   }, []);
 
-  const featured = courses.slice(0, 3);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [visibleCount, setVisibleCount] = useState(3);
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 640) setVisibleCount(1);
+      else if (window.innerWidth < 1024) setVisibleCount(2);
+      else setVisibleCount(3);
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const maxIndex = Math.max(0, courses.length - visibleCount);
+
+  useEffect(() => {
+    setCurrentIndex(prev => Math.min(prev, maxIndex));
+  }, [maxIndex]);
+
+  const nextSlide = () => {
+    setCurrentIndex(prev => Math.min(prev + 1, maxIndex));
+  };
+  const prevSlide = () => {
+    setCurrentIndex(prev => Math.max(prev - 1, 0));
+  };
+
+  const hasScroll = courses.length > visibleCount;
+  const trackWidth = hasScroll ? `${(courses.length / visibleCount) * 100}%` : '100%';
+  const itemWidth = hasScroll ? `${100 / courses.length}%` : `${100 / visibleCount}%`;
+  const transform = hasScroll ? `translateX(-${currentIndex * (100 / courses.length)}%)` : 'none';
+
   return (
     <>
       <section className="hero-section">
@@ -515,8 +552,48 @@ function LandingPage() {
         ))}
       </section>
       <section className="section">
-        <SectionTitle eyebrow="Featured Courses" title="Build confidence before the next inspection" copy="Each course is organized into modules, lessons, notes, attachments, and progress checkpoints." />
-        <div className="mt-10 grid gap-6 md:grid-cols-3">{featured.map((c) => <CourseCard key={c.id} course={c} />)}</div>
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+          <SectionTitle eyebrow="Featured Courses" title="Build confidence before the next inspection" copy="Each course is organized into modules, lessons, notes, attachments, and progress checkpoints." />
+          {courses.length > visibleCount && (
+            <div className="flex gap-3 mb-4 md:mb-0 shrink-0">
+              <button 
+                onClick={prevSlide} 
+                disabled={currentIndex === 0}
+                className={`flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 transition-all ${currentIndex === 0 ? 'opacity-40 cursor-not-allowed' : 'hover:bg-slate-50 hover:text-teal hover:border-teal/40 shadow-soft'}`}
+                aria-label="Previous courses"
+              >
+                <ArrowLeft size={18} />
+              </button>
+              <button 
+                onClick={nextSlide} 
+                disabled={currentIndex >= maxIndex}
+                className={`flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 transition-all ${currentIndex >= maxIndex ? 'opacity-40 cursor-not-allowed' : 'hover:bg-slate-50 hover:text-teal hover:border-teal/40 shadow-soft'}`}
+                aria-label="Next courses"
+              >
+                <ChevronRight size={18} />
+              </button>
+            </div>
+          )}
+        </div>
+        <div className="mt-10 overflow-hidden relative px-1 py-2">
+          <div 
+            className="flex transition-transform duration-500 ease-in-out" 
+            style={{ 
+              width: trackWidth,
+              transform: transform
+            }}
+          >
+            {courses.map((c) => (
+              <div 
+                key={c.id} 
+                style={{ width: itemWidth }} 
+                className="px-3 flex-shrink-0"
+              >
+                <CourseCard course={c} />
+              </div>
+            ))}
+          </div>
+        </div>
       </section>
       <section className="section bg-white">
         <SectionTitle eyebrow="Why This Platform" title="Purpose-built for pharmaceutical learners" />
@@ -652,6 +729,27 @@ function CourseDetailPage({ user, isAdmin }) {
   const navigate = useNavigate();
   const [course, setCourse] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [previewLesson, setPreviewLesson] = useState(null);
+  const [lockModalOpen, setLockModalOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState('curriculum');
+  const [courseComments, setCourseComments] = useState([]);
+  const [loadingComments, setLoadingComments] = useState(false);
+
+  useEffect(() => {
+    if (activeTab === 'qa' && course) {
+      setLoadingComments(true);
+      getCourseComments(course.id)
+        .then(data => {
+          if (Array.isArray(data)) setCourseComments(data);
+          else setCourseComments([]);
+        })
+        .catch(err => {
+          console.warn('Failed to load course comments:', err);
+          setCourseComments([]);
+        })
+        .finally(() => setLoadingComments(false));
+    }
+  }, [activeTab, course]);
 
   useEffect(() => {
     if (!slug) return;
@@ -710,6 +808,24 @@ function CourseDetailPage({ user, isAdmin }) {
     if (course.priceInr === 0 || isEnrolled) navigate(`/dashboard/learn/${course.id}/${getFirstLesson(course)}`);
     else navigate(`/courses/${course.slug}/insights`);
   }
+
+  function handleLessonClick(lesson, mod, moduleIndex) {
+    const isAccessible = lesson.isPreview || isEnrolled;
+    if (isAccessible) {
+      if (user) {
+        const generatedLessonId = lesson.id || makeLessonId(mod.title, moduleIndex);
+        navigate(`/dashboard/learn/${course.id}/${generatedLessonId}`);
+      } else {
+        setPreviewLesson({
+          ...lesson,
+          moduleTitle: mod.title
+        });
+      }
+    } else {
+      setLockModalOpen(true);
+    }
+  }
+
   return (
     <section className="section">
       <Link className="inline-flex items-center gap-2 text-sm font-semibold text-teal" to="/courses"><ArrowLeft size={16} /> Back to catalog</Link>
@@ -724,22 +840,112 @@ function CourseDetailPage({ user, isAdmin }) {
             <span className="pill">{getLessonCount(course)} lessons</span>
           </div>
           <div className="mt-10">
-            <h2 className="font-display text-2xl font-bold text-navy">Course Curriculum</h2>
-            <div className="mt-5 divide-y divide-slate-200 rounded border border-slate-200 bg-white">
-              {course.modules.map((mod, mi) => (
-                <details key={mod.title} open={mi === 0} className="curriculum-item">
-                  <summary><span>{mod.title}</span><span>{mod.lessons.length} lessons</span></summary>
-                  <div className="space-y-2 p-4">
-                    {mod.lessons.map((lesson) => (
-                      <div className="lesson-row" key={lesson.title}>
-                        <span className="flex items-center gap-2">{lesson.isPreview || isEnrolled ? <Play size={16} /> : <Lock size={16} />}{lesson.title}</span>
-                        <span>{lesson.duration}</span>
+            {/* Tab Navigation */}
+            <div className="flex border-b border-slate-200 gap-6 text-sm mb-6 font-semibold">
+              <button 
+                onClick={() => setActiveTab('curriculum')}
+                className={`pb-3 border-b-2 transition-all focus:outline-none ${activeTab === 'curriculum' ? 'border-teal text-teal' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+              >
+                Curriculum ({getLessonCount(course)} lessons)
+              </button>
+              <button 
+                onClick={() => setActiveTab('qa')}
+                className={`pb-3 border-b-2 transition-all focus:outline-none ${activeTab === 'qa' ? 'border-teal text-teal' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+              >
+                Community Q&A
+              </button>
+            </div>
+
+            {activeTab === 'curriculum' ? (
+              <div className="divide-y divide-slate-200 rounded border border-slate-200 bg-white">
+                {course.modules.map((mod, mi) => (
+                  <details key={mod.title} open={mi === 0} className="curriculum-item">
+                    <summary><span>{mod.title}</span><span>{mod.lessons.length} lessons</span></summary>
+                    <div className="space-y-2 p-4">
+                      {mod.lessons.map((lesson, li) => {
+                        const isAccessible = lesson.isPreview || isEnrolled;
+                        return (
+                          <button
+                            className="lesson-row w-full text-left flex items-center justify-between hover:bg-slate-50 transition-colors py-2 px-3 rounded border border-transparent focus:outline-none focus:ring-1 focus:ring-teal"
+                            key={lesson.title}
+                            onClick={() => handleLessonClick(lesson, mod, mi)}
+                          >
+                            <span className="flex items-center gap-2">
+                              {isAccessible ? <Play size={16} className="text-teal" /> : <Lock size={16} className="text-slate-400" />}
+                              <span className={isAccessible ? "font-medium text-slate-800" : "text-slate-500"}>
+                                {lesson.title}
+                              </span>
+                              {lesson.isPreview && (
+                                <span className="rounded bg-teal/10 px-1.5 py-0.5 text-[10px] font-bold text-teal ml-1">
+                                  Preview
+                                </span>
+                              )}
+                            </span>
+                            <span className="text-slate-500 text-sm">
+                              {lesson.duration || (lesson.videoDuration ? `${Math.floor(lesson.videoDuration / 60)} min` : '10 min')}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </details>
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {loadingComments ? (
+                  <div className="text-center py-10 text-slate-500 font-medium">Loading discussions...</div>
+                ) : courseComments.length === 0 ? (
+                  <div className="empty-state text-center py-12">
+                    <MessageSquare size={36} className="mx-auto text-slate-300 mb-3" />
+                    <p className="font-semibold text-slate-700">No public questions yet</p>
+                    <p className="text-sm text-slate-500 mt-1">Enrolled students can start discussions and ask questions inside the lesson player workspace.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {courseComments.map((comment) => (
+                      <div key={comment.id} className="bg-white rounded-xl border border-slate-200/80 p-5 shadow-soft text-left">
+                        <div className="flex items-start gap-3">
+                          <div className="h-9 w-9 rounded-full bg-teal/10 text-teal font-bold flex items-center justify-center text-sm shrink-0">
+                            {comment.user?.fullName?.charAt(0) || comment.user?.email?.charAt(0) || 'L'}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                              <span className="font-bold text-navy text-sm">{comment.user?.fullName || 'Learner'}</span>
+                              {comment.user?.isInstructor && <span className="badge text-[10px] py-0.5 px-1.5">Instructor</span>}
+                              <span className="text-xs text-slate-400 font-medium">
+                                asked in <span className="text-teal font-semibold">{comment.lesson?.title || 'Lesson'}</span>
+                              </span>
+                            </div>
+                            <p className="mt-2 text-slate-700 text-sm leading-relaxed">{comment.content}</p>
+                            
+                            {/* Replies */}
+                            {comment.replies && comment.replies.length > 0 && (
+                              <div className="mt-4 pl-4 border-l-2 border-slate-100 space-y-3">
+                                {comment.replies.map((reply) => (
+                                  <div key={reply.id} className="flex gap-2">
+                                    <div className="h-7 w-7 rounded-full bg-slate-100 text-slate-500 font-bold flex items-center justify-center text-xs shrink-0">
+                                      {reply.user?.fullName?.charAt(0) || 'L'}
+                                    </div>
+                                    <div>
+                                      <div className="flex items-center gap-1.5">
+                                        <span className="font-bold text-navy text-xs">{reply.user?.fullName || 'Reply'}</span>
+                                        {reply.user?.isInstructor && <span className="badge text-[9px] py-0 px-1 font-bold">Instructor</span>}
+                                      </div>
+                                      <p className="text-slate-600 text-xs mt-1 leading-relaxed">{reply.content}</p>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
                       </div>
                     ))}
                   </div>
-                </details>
-              ))}
-            </div>
+                )}
+              </div>
+            )}
           </div>
           <div className="mt-10 grid gap-8 md:grid-cols-2">
             <div>
@@ -750,7 +956,7 @@ function CourseDetailPage({ user, isAdmin }) {
           </div>
         </div>
         <aside className="sticky top-24 h-fit rounded border border-slate-200 bg-white p-5 shadow-soft">
-          <img src={course.thumbnail} alt="" className="h-44 w-full rounded object-cover" />
+          <img src={course.thumbnailUrl || course.thumbnail} alt="" className="h-44 w-full rounded object-cover" />
           <div className="mt-5 flex items-center justify-between">
             <span className="text-sm font-semibold text-slate-500">Course price</span>
             <strong className="text-2xl text-navy">{formatPrice(course.priceInr)}</strong>
@@ -761,6 +967,91 @@ function CourseDetailPage({ user, isAdmin }) {
           {!user && <p className="mt-3 text-xs text-slate-400 text-center">Create a free account to get started.</p>}
         </aside>
       </div>
+
+      {/* Lesson Preview Modal */}
+      {previewLesson && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm">
+          <div className="relative w-full max-w-3xl bg-slate-950 text-white rounded-2xl shadow-2xl overflow-hidden border border-slate-800">
+            <button
+              onClick={() => setPreviewLesson(null)}
+              className="absolute top-4 right-4 z-10 p-2 rounded-full bg-slate-900/80 hover:bg-slate-800 text-slate-300 hover:text-white transition-colors"
+              aria-label="Close preview"
+            >
+              <X size={18} />
+            </button>
+            <div className="p-6 pb-2">
+              <span className="text-[10px] uppercase tracking-wider font-extrabold text-teal">{previewLesson.moduleTitle} &bull; FREE PREVIEW</span>
+              <h3 className="mt-1 font-display text-xl font-bold text-white pr-8">{previewLesson.title}</h3>
+            </div>
+            <div className="px-6 pb-6">
+              <div className="aspect-video w-full rounded-lg bg-black overflow-hidden relative shadow-inner">
+                <VideoPlayer
+                  src={previewLesson.videoUrl}
+                  videoStreamId={previewLesson.videoStreamId}
+                  courseId={course.id}
+                  videoId={previewLesson.id || makeLessonId(previewLesson.moduleTitle, 0)}
+                  title={previewLesson.title}
+                  user={user}
+                />
+              </div>
+              <div className="mt-5 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-slate-800 pt-5">
+                <div className="text-left w-full">
+                  <p className="text-sm font-bold text-slate-200">Like Harish's teaching style?</p>
+                  <p className="text-xs text-slate-400">Enroll to access all other lessons, structured study resources, notes, and community comments.</p>
+                </div>
+                <button
+                  className="btn btn-teal text-sm w-full sm:w-auto shrink-0 justify-center"
+                  onClick={() => {
+                    setPreviewLesson(null);
+                    handleEnroll();
+                  }}
+                >
+                  Enroll in Course
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Lock Prompt Modal */}
+      {lockModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="w-full max-w-md bg-white rounded-2xl p-6 shadow-2xl border border-slate-100 text-center relative">
+            <button
+              onClick={() => setLockModalOpen(false)}
+              className="absolute top-4 right-4 p-2 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
+              aria-label="Close"
+            >
+              <X size={18} />
+            </button>
+            <div className="mx-auto w-12 h-12 bg-amber-50 rounded-full flex items-center justify-center mb-4">
+              <Lock className="text-amber-500" size={24} />
+            </div>
+            <h3 className="font-display text-xl font-bold text-navy">This lesson is locked</h3>
+            <p className="mt-2 text-slate-600 text-sm leading-relaxed">
+              To watch this video and access full study materials, please enroll in this training program.
+            </p>
+            <div className="mt-6 flex flex-col gap-2">
+              <button
+                className="btn btn-primary justify-center"
+                onClick={() => {
+                  setLockModalOpen(false);
+                  handleEnroll();
+                }}
+              >
+                Enroll Now ({formatPrice(course.priceInr)})
+              </button>
+              <button
+                className="btn btn-outline justify-center"
+                onClick={() => setLockModalOpen(false)}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }
@@ -861,7 +1152,7 @@ function DashboardPage({ user }) {
         <div className="mt-8 grid gap-5 lg:grid-cols-2">
           {enrolled.map((c) => (
             <article className="learning-card" key={c.id}>
-              <img src={c.thumbnail} alt="" className="h-36 w-full object-cover sm:h-full sm:w-44" />
+              <img src={c.thumbnailUrl || c.thumbnail} alt="" className="h-36 w-full object-cover sm:h-full sm:w-44" />
               <div className="flex flex-1 flex-col p-5">
                 <h3 className="font-display text-xl font-bold text-navy">{c.title}</h3>
                 <p className="mt-2 text-sm text-slate-600">{c.shortDesc}</p>
@@ -975,10 +1266,15 @@ function CoursePlayerPage({ user }) {
     );
   }, [course]);
 
+  const isQuizMode = lessonId === 'quiz';
+
   const currentLesson = useMemo(() => {
+    if (isQuizMode) {
+      return { id: 'quiz', title: 'Final Course Quiz', moduleTitle: 'Assessment', isPreview: false };
+    }
     if (!allLessons.length) return null;
     return allLessons.find((l) => l.id === lessonId || l.generatedId === lessonId) || allLessons[0];
-  }, [allLessons, lessonId]);
+  }, [allLessons, lessonId, isQuizMode]);
 
   const currentIndex = useMemo(() => {
     if (!allLessons.length || !currentLesson) return -1;
@@ -1005,6 +1301,7 @@ function CoursePlayerPage({ user }) {
   }
 
   const hasVideo = (currentLesson.videoUrl && currentLesson.videoUrl !== '/videos/upload-your-video.mp4') || currentLesson.videoStreamId;
+  const isLessonAccessible = isEnrolled || currentLesson.isPreview;
 
   return (
     <section className="player-shell">
@@ -1050,63 +1347,110 @@ function CoursePlayerPage({ user }) {
               </div>
             </div>
           ))}
+          {isEnrolled && (
+            <div className="mt-6 border-t border-slate-200/80 pt-6 px-1">
+              <Link
+                to={`/dashboard/learn/${course.id}/quiz`}
+                className={`w-full flex items-center justify-between p-3 rounded-lg border text-sm font-semibold transition-all ${
+                  isQuizMode
+                    ? 'bg-teal text-white border-teal shadow-soft'
+                    : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                }`}
+              >
+                <span className="flex items-center gap-2">
+                  <Award size={16} />
+                  <span>Final Course Quiz</span>
+                </span>
+                <ChevronRight size={14} className={isQuizMode ? "text-white" : "text-slate-400"} />
+              </Link>
+            </div>
+          )}
         </div>
       </aside>
       <main className="player-main">
-        {hasVideo ? (
-          <VideoPlayer 
-            src={currentLesson.videoUrl} 
-            videoStreamId={currentLesson.videoStreamId} 
-            courseId={courseId} 
-            videoId={currentLesson.id} 
-            title={currentLesson.title} 
-            user={user} 
-          />
+        {!isLessonAccessible ? (
+          <div className="flex flex-col items-center justify-center p-8 min-h-[30rem] text-center bg-slate-50/50 rounded-lg border border-slate-100">
+            <div className="mx-auto w-16 h-16 bg-amber-50 rounded-full flex items-center justify-center mb-6">
+              <Lock className="text-amber-500" size={32} />
+            </div>
+            <h2 className="font-display text-2xl font-bold text-navy">This lesson is locked</h2>
+            <p className="mt-3 max-w-md text-slate-600 leading-relaxed text-sm">
+              To watch this video, read full study notes, and download materials, please enroll in this training program.
+            </p>
+            <button
+              className="btn btn-primary mt-6 px-6 py-2.5 justify-center"
+              onClick={() => navigate(`/courses/${course.slug}`)}
+            >
+              Enroll in Course ({formatPrice(course.priceInr)})
+            </button>
+          </div>
+        ) : isQuizMode ? (
+          <InteractiveQuiz courseId={course.id} navigate={navigate} />
         ) : (
-          <div className="content-only-banner"><BookOpen size={32} className="text-teal" aria-hidden="true" /><p>Reading lesson — no video for this topic</p></div>
-        )}
-        <div className="mt-7 flex flex-col justify-between gap-4 md:flex-row md:items-center">
-          <div><span className="badge">{currentLesson.moduleTitle}</span><h2 className="mt-3 font-display text-3xl font-bold text-navy">{currentLesson.title}</h2></div>
-          <div className="flex flex-wrap gap-2">
-            {currentLesson.attachmentUrl && (
-              isEnrolled ? (
-                <a className="btn btn-outline" href={currentLesson.attachmentUrl} target="_blank" rel="noreferrer"><Download size={16} /> Download notes</a>
-              ) : (
-                <button className="btn btn-outline opacity-60 cursor-not-allowed" onClick={() => alert('🔒 Note download is reserved for enrolled students. Please purchase the course to access.')}><Download size={16} /> Download notes (Locked)</button>
-              )
+          <>
+            {hasVideo ? (
+              <VideoPlayer 
+                src={currentLesson.videoUrl} 
+                videoStreamId={currentLesson.videoStreamId} 
+                courseId={courseId} 
+                videoId={currentLesson.id} 
+                title={currentLesson.title} 
+                user={user} 
+              />
+            ) : (
+              <div className="content-only-banner"><BookOpen size={32} className="text-teal" aria-hidden="true" /><p>Reading lesson — no video for this topic</p></div>
             )}
-            {hasVideo && (
-              isEnrolled ? (
-                <a className="btn btn-outline" href={currentLesson.videoUrl} download target="_blank" rel="noreferrer"><Download size={16} /> Download video</a>
+            <div className="mt-7 flex flex-col justify-between gap-4 md:flex-row md:items-center">
+              <div><span className="badge">{currentLesson.moduleTitle}</span><h2 className="mt-3 font-display text-3xl font-bold text-navy">{currentLesson.title}</h2></div>
+              <div className="flex flex-wrap gap-2">
+                {currentLesson.attachmentUrl && (
+                  isEnrolled ? (
+                    <a className="btn btn-outline" href={currentLesson.attachmentUrl} target="_blank" rel="noreferrer"><Download size={16} /> Download notes</a>
+                  ) : (
+                    <button className="btn btn-outline opacity-60 cursor-not-allowed" onClick={() => alert('🔒 Note download is reserved for enrolled students. Please purchase the course to access.')}><Download size={16} /> Download notes (Locked)</button>
+                  )
+                )}
+                {hasVideo && (
+                  isEnrolled ? (
+                    <a className="btn btn-outline" href={currentLesson.videoUrl} download target="_blank" rel="noreferrer"><Download size={16} /> Download video</a>
+                  ) : (
+                    <button className="btn btn-outline opacity-60 cursor-not-allowed" onClick={() => alert('🔒 Video download is reserved for enrolled students. Please purchase the course to access.')}><Download size={16} /> Download video (Locked)</button>
+                  )
+                )}
+              </div>
+            </div>
+            <div className="lesson-notes mt-5">
+              {currentLesson.notes ? (
+                currentLesson.notes.split('\n').map((p, i) => p.trim() ? <p key={i} className="mb-4 text-slate-700 leading-relaxed">{p}</p> : null)
               ) : (
-                <button className="btn btn-outline opacity-60 cursor-not-allowed" onClick={() => alert('🔒 Video download is reserved for enrolled students. Please purchase the course to access.')}><Download size={16} /> Download video (Locked)</button>
-              )
+                <p className="text-slate-400 italic">No notes available for this lesson.</p>
+              )}
+            </div>
+            <div className="mt-8 flex items-center justify-between gap-3">
+              <button className="btn btn-outline" disabled={!prevLesson} onClick={() => prevLesson && navigate(`/dashboard/learn/${course.id}/${prevLesson.id}`)}><ArrowLeft size={16} /> Previous</button>
+              <span className="text-sm text-slate-400">{currentIndex + 1} / {allLessons.length}</span>
+              {nextLesson ? (
+                <button className="btn btn-primary" onClick={markComplete}><CheckCircle2 size={16} />{isCompleted(currentLesson.id) ? 'Next Lesson' : 'Mark Complete & Next'}</button>
+              ) : (
+                <button className="btn btn-teal" onClick={markComplete}><CheckCircle2 size={16} />{isCompleted(currentLesson.id) ? '✓ Course Complete' : 'Mark Complete'}</button>
+              )}
+            </div>
+            {!nextLesson && isCompleted(currentLesson.id) && (
+              <div className="mt-6 rounded border border-teal/30 bg-teal/5 p-5 text-center">
+                <CheckCircle2 size={36} className="mx-auto text-teal" />
+                <h3 className="mt-3 font-display text-xl font-bold text-navy">Course Complete!</h3>
+                <p className="mt-2 text-slate-600">You've finished all lessons in this course.</p>
+                <Link className="btn btn-primary mt-4 inline-flex" to="/dashboard">Back to Dashboard</Link>
+              </div>
             )}
-          </div>
-        </div>
-        <div className="lesson-notes mt-5">
-          {currentLesson.notes ? (
-            currentLesson.notes.split('\n').map((p, i) => p.trim() ? <p key={i} className="mb-4 text-slate-700 leading-relaxed">{p}</p> : null)
-          ) : (
-            <p className="text-slate-400 italic">No notes available for this lesson.</p>
-          )}
-        </div>
-        <div className="mt-8 flex items-center justify-between gap-3">
-          <button className="btn btn-outline" disabled={!prevLesson} onClick={() => prevLesson && navigate(`/dashboard/learn/${course.id}/${prevLesson.id}`)}><ArrowLeft size={16} /> Previous</button>
-          <span className="text-sm text-slate-400">{currentIndex + 1} / {allLessons.length}</span>
-          {nextLesson ? (
-            <button className="btn btn-primary" onClick={markComplete}><CheckCircle2 size={16} />{isCompleted(currentLesson.id) ? 'Next Lesson' : 'Mark Complete & Next'}</button>
-          ) : (
-            <button className="btn btn-teal" onClick={markComplete}><CheckCircle2 size={16} />{isCompleted(currentLesson.id) ? '✓ Course Complete' : 'Mark Complete'}</button>
-          )}
-        </div>
-        {!nextLesson && isCompleted(currentLesson.id) && (
-          <div className="mt-6 rounded border border-teal/30 bg-teal/5 p-5 text-center">
-            <CheckCircle2 size={36} className="mx-auto text-teal" />
-            <h3 className="mt-3 font-display text-xl font-bold text-navy">Course Complete!</h3>
-            <p className="mt-2 text-slate-600">You've finished all lessons in this course.</p>
-            <Link className="btn btn-primary mt-4 inline-flex" to="/dashboard">Back to Dashboard</Link>
-          </div>
+            
+            {/* Real-time Comments Section */}
+            {isEnrolled && (
+              <div className="mt-10 border-t border-slate-200 pt-8">
+                <CommentsSection lessonId={currentLesson.id} user={user} />
+              </div>
+            )}
+          </>
         )}
       </main>
     </section>
@@ -1985,6 +2329,224 @@ function SessionTimeoutHandler({ user }) {
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ─── Assessment Components ───────────────────────────────────────────────────
+function ConfettiOverlay() {
+  const [particles, setParticles] = useState([]);
+  
+  useEffect(() => {
+    const list = Array.from({ length: 80 }).map((_, i) => ({
+      id: i,
+      left: Math.random() * 100,
+      delay: Math.random() * 3,
+      size: Math.random() * 8 + 6,
+      color: ['#0d9488', '#0f766e', '#f59e0b', '#10b981', '#3b82f6', '#ec4899'][Math.floor(Math.random() * 6)],
+      spin: Math.random() * 360,
+    }));
+    setParticles(list);
+  }, []);
+
+  return (
+    <div className="absolute inset-0 pointer-events-none overflow-hidden z-50">
+      {particles.map(p => (
+        <span
+          key={p.id}
+          className="absolute rounded-full animate-confetti-fall"
+          style={{
+            left: `${p.left}%`,
+            width: `${p.size}px`,
+            height: `${p.size}px`,
+            backgroundColor: p.color,
+            animationDelay: `${p.delay}s`,
+            transform: `rotate(${p.spin}deg)`,
+            opacity: 0.8,
+            top: '-20px'
+          }}
+        />
+      ))}
+      <style>{`
+        @keyframes confetti-fall {
+          0% {
+            transform: translateY(0) rotate(0deg);
+            opacity: 1;
+          }
+          100% {
+            transform: translateY(110%) rotate(360deg);
+            opacity: 0;
+          }
+        }
+        .animate-confetti-fall {
+          animation: confetti-fall 4s linear infinite;
+        }
+      `}</style>
+    </div>
+  );
+}
+
+function InteractiveQuiz({ courseId, navigate }) {
+  const courseQuizzes = quizzes[courseId] || quizzes['oos-investigation'];
+  const [currentQIndex, setCurrentQIndex] = useState(0);
+  const [selectedOption, setSelectedOption] = useState(null);
+  const [submitted, setSubmitted] = useState(false);
+  const [score, setScore] = useState(0);
+  const [showResults, setShowResults] = useState(false);
+  const [confettiActive, setConfettiActive] = useState(false);
+
+  const currentQuestion = courseQuizzes[currentQIndex];
+
+  const handleSubmit = () => {
+    if (selectedOption === null) return;
+    const isCorrect = selectedOption === currentQuestion.answerIndex;
+    if (isCorrect) setScore(prev => prev + 1);
+    setSubmitted(true);
+  };
+
+  const handleNext = () => {
+    setSelectedOption(null);
+    setSubmitted(false);
+    
+    if (currentQIndex < courseQuizzes.length - 1) {
+      setCurrentQIndex(prev => prev + 1);
+    } else {
+      setShowResults(true);
+      if (score >= 4) {
+        setConfettiActive(true);
+      }
+    }
+  };
+
+  const handleRetry = () => {
+    setCurrentQIndex(0);
+    setSelectedOption(null);
+    setSubmitted(false);
+    setScore(0);
+    setShowResults(false);
+    setConfettiActive(false);
+  };
+
+  return (
+    <div className="bg-white rounded-2xl border border-slate-200/80 p-6 md:p-8 shadow-soft max-w-3xl mx-auto relative overflow-hidden my-6">
+      {confettiActive && <ConfettiOverlay />}
+      
+      {!showResults ? (
+        <div>
+          <div className="flex justify-between items-center border-b border-slate-100 pb-4 mb-6">
+            <div>
+              <span className="text-xs font-bold text-teal tracking-wider uppercase">Course Evaluation</span>
+              <h3 className="font-display text-lg font-bold text-navy mt-1">Question {currentQIndex + 1} of {courseQuizzes.length}</h3>
+            </div>
+            <span className="text-xs font-semibold text-slate-400">Passing Score: 80% (4/5)</span>
+          </div>
+
+          <p className="text-slate-800 font-medium text-base mb-6 leading-relaxed text-left">
+            {currentQuestion.question}
+          </p>
+
+          <div className="space-y-3 mb-6">
+            {currentQuestion.options.map((option, idx) => {
+              let btnClass = "w-full text-left p-4 rounded-xl border transition-all text-sm font-medium flex items-center justify-between ";
+              if (submitted) {
+                if (idx === currentQuestion.answerIndex) {
+                  btnClass += "bg-emerald-50 border-emerald-500 text-emerald-800";
+                } else if (idx === selectedOption) {
+                  btnClass += "bg-rose-50 border-rose-500 text-rose-800";
+                } else {
+                  btnClass += "bg-slate-50 border-slate-100 text-slate-400";
+                }
+              } else {
+                if (idx === selectedOption) {
+                  btnClass += "bg-teal/5 border-teal text-teal shadow-soft";
+                } else {
+                  btnClass += "bg-white border-slate-200 text-slate-700 hover:bg-slate-50/50 hover:border-slate-300";
+                }
+              }
+
+              return (
+                <button
+                  key={idx}
+                  disabled={submitted}
+                  onClick={() => setSelectedOption(idx)}
+                  className={btnClass}
+                >
+                  <span>{option}</span>
+                  {submitted && idx === currentQuestion.answerIndex && (
+                    <span className="h-5 w-5 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[10px] font-bold">✓</span>
+                  )}
+                  {submitted && idx === selectedOption && idx !== currentQuestion.answerIndex && (
+                    <span className="h-5 w-5 rounded-full bg-rose-500 text-white flex items-center justify-center text-[10px] font-bold">✗</span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {submitted && (
+            <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 mb-6 text-sm text-slate-600 leading-relaxed text-left">
+              <strong className="text-navy block mb-1">Explanation:</strong>
+              {currentQuestion.explanation}
+            </div>
+          )}
+
+          <div className="flex justify-end gap-3">
+            {!submitted ? (
+              <button
+                onClick={handleSubmit}
+                disabled={selectedOption === null}
+                className="btn btn-primary px-6 animate-pulse"
+              >
+                Submit Answer
+              </button>
+            ) : (
+              <button
+                onClick={handleNext}
+                className="btn btn-teal px-6"
+              >
+                {currentQIndex === courseQuizzes.length - 1 ? "Finish Quiz" : "Next Question"}
+              </button>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="text-center py-6">
+          <div className="mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-6 bg-slate-50">
+            {score >= 4 ? (
+              <Award className="text-teal" size={36} />
+            ) : (
+              <Award className="text-slate-400 animate-pulse" size={36} />
+            )}
+          </div>
+
+          <h3 className="font-display text-2xl font-extrabold text-navy">
+            {score >= 4 ? "Congratulations! You Passed!" : "Keep Studying!"}
+          </h3>
+          <p className="mt-3 text-slate-600 text-sm max-w-md mx-auto leading-relaxed">
+            {score >= 4
+              ? `You scored ${score} out of ${courseQuizzes.length} (${(score / courseQuizzes.length) * 100}%). You have successfully demonstrated compliance knowledge for this GMP program.`
+              : `You scored ${score} out of ${courseQuizzes.length}. You need a score of 80% (4/5) or higher to pass. Review the lesson notes and try again.`}
+          </p>
+
+          <div className="mt-8 flex justify-center gap-3">
+            {score >= 4 ? (
+              <button
+                onClick={() => navigate('/dashboard')}
+                className="btn btn-primary px-6"
+              >
+                Return to Dashboard
+              </button>
+            ) : (
+              <button
+                onClick={handleRetry}
+                className="btn btn-primary px-6"
+              >
+                Retry Assessment
+              </button>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

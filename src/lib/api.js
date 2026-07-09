@@ -182,6 +182,10 @@ export async function getComments(lessonId, limit = 50, offset = 0) {
   return fetchAPI(`/comments/lesson/${lessonId}?limit=${limit}&offset=${offset}`);
 }
 
+export async function getCourseComments(courseId, limit = 10) {
+  return fetchAPI(`/comments/course/${courseId}?limit=${limit}`);
+}
+
 export async function createComment(lessonId, userId, content) {
   return fetchAPI('/comments', {
     method: 'POST',
