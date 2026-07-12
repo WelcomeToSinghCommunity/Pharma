@@ -20,13 +20,15 @@ STABLE
 SECURITY DEFINER
 SET search_path = public
 AS $$
-  SELECT COALESCE(
-    lower(auth.jwt() ->> 'email') IN (
-      'harideepsingh13@gmail.com',
-      'kishansingh.nmims@gmail.com',
-      'contact@nextgenpharma.org'
-    ),
-    false
+  SELECT EXISTS (
+    SELECT 1
+    FROM auth.users
+    WHERE id = auth.uid()
+      AND lower(email) IN (
+        'harideepsingh13@gmail.com',
+        'kishansingh.nmims@gmail.com',
+        'contact@nextgenpharma.org'
+      )
   );
 $$;
 -- CMD

@@ -2230,13 +2230,27 @@ function AdminCourseFormPage({ isAdmin }) {
 }
 
 function AdminUsersPage({ isAdmin }) {
-  const [users, setUsers] = useState([]); const [loading, setLoading] = useState(true);
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   const fetchUsers = () => {
     if (!hasSupabaseConfig || !isAdmin) return;
     supabase.from('profiles').select('id, full_name, email, role, created_at').order('created_at', { ascending: false })
-      .then(({ data }) => { setUsers(data ?? []); setLoading(false); })
-      .catch(err => console.error('Error fetching users:', err));
+      .then(({ data, error: queryError }) => {
+        if (queryError) {
+          setError(queryError.message || JSON.stringify(queryError));
+        } else {
+          setUsers(data ?? []);
+          setError(null);
+        }
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error('Error fetching users:', err);
+        setError(err.message || 'Unknown fetch error');
+        setLoading(false);
+      });
   };
 
   useEffect(() => {
@@ -2261,8 +2275,9 @@ function AdminUsersPage({ isAdmin }) {
           <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Joined</th><th>Action</th></tr></thead>
           <tbody>
             {loading && <tr><td colSpan="5" className="py-6 text-center text-slate-400">Loading users…</td></tr>}
-            {!loading && users.length === 0 && <tr><td colSpan="5" className="py-6 text-center text-slate-400">No users yet.</td></tr>}
-            {users.map((u) => (
+            {error && <tr><td colSpan="5" className="py-6 text-center text-red-500 font-semibold bg-red-50">Error: {error}</td></tr>}
+            {!loading && !error && users.length === 0 && <tr><td colSpan="5" className="py-6 text-center text-slate-400">No users yet.</td></tr>}
+            {!loading && !error && users.map((u) => (
               <tr key={u.id}>
                 <td><strong>{u.full_name || '—'}</strong></td><td>{u.email}</td>
                 <td><span className={`badge ${u.role === 'admin' ? 'bg-purple-100 text-purple-700' : ''}`}>{u.role}</span></td>
