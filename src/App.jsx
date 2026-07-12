@@ -1818,7 +1818,8 @@ function AdminAccessDenied() {
 
 function AdminPage({ isAdmin }) {
   const [stats, setStats] = useState({ signups: 0, enrollments: 0, subscribers: 0, messages: 0 });
-  useEffect(() => {
+
+  const fetchStats = () => {
     if (!hasSupabaseConfig || !isAdmin) return;
     Promise.all([
       supabase.from('profiles').select('*', { count: 'exact', head: true }),
@@ -1826,8 +1827,31 @@ function AdminPage({ isAdmin }) {
       supabase.from('user_subscriptions').select('*', { count: 'exact', head: true }).eq('status', 'active'),
       supabase.from('contact_submissions').select('*', { count: 'exact', head: true }).eq('read', false),
     ]).then(([{ count: signups }, { count: enrollments }, { count: subscribers }, { count: messages }]) => {
-      setStats({ signups: signups ?? 0, enrollments: enrollments ?? 0, subscribers: subscribers ?? 0, messages: messages ?? 0 });
-    });
+      setStats({
+        signups: signups ?? 0,
+        enrollments: enrollments ?? 0,
+        subscribers: subscribers ?? 0,
+        messages: messages ?? 0
+      });
+    }).catch(err => console.error('Error fetching stats:', err));
+  };
+
+  useEffect(() => {
+    if (!hasSupabaseConfig || !isAdmin) return;
+    fetchStats();
+
+    // Subscribe to realtime updates across all four tables to keep counters fresh
+    const channel = supabase
+      .channel('admin-stats-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => fetchStats())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'enrollments' }, () => fetchStats())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'user_subscriptions' }, () => fetchStats())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'contact_submissions' }, () => fetchStats())
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [isAdmin]);
   return (
     <AdminLayout isAdmin={isAdmin}>
@@ -2207,10 +2231,27 @@ function AdminCourseFormPage({ isAdmin }) {
 
 function AdminUsersPage({ isAdmin }) {
   const [users, setUsers] = useState([]); const [loading, setLoading] = useState(true);
-  useEffect(() => {
+
+  const fetchUsers = () => {
     if (!hasSupabaseConfig || !isAdmin) return;
     supabase.from('profiles').select('id, full_name, email, role, created_at').order('created_at', { ascending: false })
-      .then(({ data }) => { setUsers(data ?? []); setLoading(false); });
+      .then(({ data }) => { setUsers(data ?? []); setLoading(false); })
+      .catch(err => console.error('Error fetching users:', err));
+  };
+
+  useEffect(() => {
+    if (!hasSupabaseConfig || !isAdmin) return;
+    fetchUsers();
+
+    // Subscribe to realtime changes on profiles table to keep user list fresh
+    const channel = supabase
+      .channel('admin-users-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => fetchUsers())
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [isAdmin]);
   return (
     <AdminLayout isAdmin={isAdmin}>
@@ -2238,13 +2279,33 @@ function AdminUsersPage({ isAdmin }) {
 
 function AdminMessagesPage({ isAdmin }) {
   const [messages, setMessages] = useState([]); const [loading, setLoading] = useState(true);
-  useEffect(() => {
+
+  const fetchMessages = () => {
     if (!hasSupabaseConfig || !isAdmin) return;
     supabase.from('contact_submissions').select('*').order('created_at', { ascending: false })
-      .then(({ data }) => { setMessages(data ?? []); setLoading(false); });
+      .then(({ data }) => { setMessages(data ?? []); setLoading(false); })
+      .catch(err => console.error('Error fetching messages:', err));
+  };
+
+  useEffect(() => {
+    if (!hasSupabaseConfig || !isAdmin) return;
+    fetchMessages();
+
+    // Subscribe to realtime updates on contact_submissions table to keep messages list fresh
+    const channel = supabase
+      .channel('admin-messages-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'contact_submissions' }, () => fetchMessages())
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [isAdmin]);
+
   async function markRead(id) {
     await supabase.from('contact_submissions').update({ read: true }).eq('id', id);
+    // State will be updated automatically by the realtime listener when the update is replicated,
+    // but updating state locally immediately provides a snappy optimistic UI experience.
     setMessages(messages.map((m) => m.id === id ? { ...m, read: true } : m));
   }
   return (

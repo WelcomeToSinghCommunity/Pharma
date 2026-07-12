@@ -13,13 +13,29 @@ export default function LiveClasses() {
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (!hasSupabaseConfig) { setLoading(false); return; }
+  const fetchSessions = () => {
+    if (!hasSupabaseConfig) return;
     supabase
       .from('live_sessions')
       .select('*')
       .order('scheduled_at', { ascending: true })
-      .then(({ data }) => { setSessions(data ?? []); setLoading(false); });
+      .then(({ data }) => { setSessions(data ?? []); setLoading(false); })
+      .catch(err => console.error('Error fetching sessions:', err));
+  };
+
+  useEffect(() => {
+    if (!hasSupabaseConfig) { setLoading(false); return; }
+    fetchSessions();
+
+    // Subscribe to realtime changes on live_sessions table to keep class status fresh
+    const channel = supabase
+      .channel('live-sessions-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'live_sessions' }, () => fetchSessions())
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const live = sessions.filter((s) => s.status === 'live');
